@@ -165,6 +165,7 @@
                 <button onclick="calc('scalar')">Scalar &times; A</button>
                 <input type="number" id="scalar" class="scalar-input" value="2" step="any">
                 <button onclick="calc('power')">A ^ n</button>
+                <button onclick="calc('power_mul')">A^n &times; B</button>
                 <input type="number" id="power" class="scalar-input" value="2" min="0" step="1">
             </div>
         </div>
@@ -511,7 +512,7 @@ function calc(op) {
     try {
         const A = parseMatrix(document.getElementById('matA').value);
         let B;
-        if (['add', 'sub', 'mul'].includes(op)) {
+        if (['add', 'sub', 'mul', 'power_mul'].includes(op)) {
             B = parseMatrix(document.getElementById('matB').value);
         }
 
@@ -557,6 +558,13 @@ function calc(op) {
                 if (isNaN(n) || n < 0) throw new Error('Exponent must be a non-negative integer');
                 result = matPow(A, n);
                 label = `A^${n}`;
+                break;
+            }
+            case 'power_mul': {
+                const n = parseInt(document.getElementById('power').value);
+                if (isNaN(n) || n < 0) throw new Error('Exponent must be a non-negative integer');
+                result = matMul(matPow(A, n), B);
+                label = `A^${n} × B`;
                 break;
             }
             case 'eigen': {

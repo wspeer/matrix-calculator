@@ -41,9 +41,10 @@ Operations:
   8  Trace                     (tr A)
   9  Rank                      (rank A)
   10 Matrix power              (A^n)
-  11 Reduced row echelon form  (RREF)
-  12 Identity matrix
-  13 Eigenvalues & eigenvectors
+  11 Power times matrix        (A^n * B)
+  12 Reduced row echelon form  (RREF)
+  13 Identity matrix
+  14 Eigenvalues & eigenvectors
   0  Quit
 """
 
@@ -127,10 +128,21 @@ def run_calculator():
 
             elif choice == "11":
                 A = prompt_matrix("A")
+                try:
+                    n = int(input("Enter exponent n (non-negative integer): ").strip())
+                except ValueError:
+                    print("Invalid exponent.\n")
+                    continue
+                B = prompt_matrix("B")
+                result = A.power(n) * B
+                print(f"\nA^{n} × B =\n{result}\n")
+
+            elif choice == "12":
+                A = prompt_matrix("A")
                 result = A.rref()
                 print(f"\nRREF(A) =\n{result}\n")
 
-            elif choice == "12":
+            elif choice == "13":
                 try:
                     n = int(input("Enter size n for I_n: ").strip())
                 except ValueError:
@@ -139,7 +151,7 @@ def run_calculator():
                 result = identity(n)
                 print(f"\nI_{n} =\n{result}\n")
 
-            elif choice == "13":
+            elif choice == "14":
                 A = prompt_matrix("A")
                 evals, evecs = A.eigenvectors()
                 print("\nEigenvalues and Eigenvectors:")
@@ -159,7 +171,6 @@ def run_calculator():
                         print(f"  v{i+1} = [ {', '.join(entries)} ]\n")
                     else:
                         print(f"  v{i+1} =\n{vec}\n")
-                print(f"\nI_{n} =\n{result}\n")
 
             else:
                 print("Unknown option. Please enter a number from the menu.\n")
