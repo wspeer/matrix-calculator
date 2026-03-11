@@ -249,6 +249,55 @@ def test_power_negative_raises():
         mat([[1, 2], [3, 4]]).power(-1)
 
 
+# --- Eigenvalues ---
+
+def test_eigenvalues_diagonal():
+    A = mat([[3, 0], [0, 5]])
+    evals = sorted(A.eigenvalues())
+    assert evals[0] == pytest.approx(3.0, abs=1e-6)
+    assert evals[1] == pytest.approx(5.0, abs=1e-6)
+
+
+def test_eigenvalues_symmetric():
+    A = mat([[2, 1], [1, 2]])
+    evals = sorted(A.eigenvalues())
+    assert evals[0] == pytest.approx(1.0, abs=1e-6)
+    assert evals[1] == pytest.approx(3.0, abs=1e-6)
+
+
+def test_eigenvalues_3x3():
+    A = mat([[1, 0, 0], [0, 2, 0], [0, 0, 3]])
+    evals = sorted(A.eigenvalues())
+    assert evals[0] == pytest.approx(1.0, abs=1e-6)
+    assert evals[1] == pytest.approx(2.0, abs=1e-6)
+    assert evals[2] == pytest.approx(3.0, abs=1e-6)
+
+
+def test_eigenvectors_returns_correct_count():
+    A = mat([[4, 1], [2, 3]])
+    evals, evecs = A.eigenvectors()
+    assert len(evals) == 2
+    assert len(evecs) == 2
+    for vec in evecs:
+        assert vec.shape == (2, 1)
+
+
+def test_eigenvectors_verify_Av_eq_lv():
+    """Verify that A*v = lambda*v for each eigenpair."""
+    A = mat([[2, 1], [1, 2]])
+    evals, evecs = A.eigenvectors()
+    for lam, v in zip(evals, evecs):
+        Av = A * v
+        lv = lam * v
+        for r in range(A.rows):
+            assert Av[r, 0] == pytest.approx(lv[r, 0], abs=1e-4)
+
+
+def test_eigenvalues_non_square_raises():
+    with pytest.raises(MatrixError):
+        mat([[1, 2, 3]]).eigenvalues()
+
+
 # --- Helpers ---
 
 def test_identity():

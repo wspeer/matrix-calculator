@@ -268,6 +268,123 @@ class Matrix:
             n //= 2
         return result
 
+    def eigenvalues(self, max_iter=1000):
+        """Compute eigenvalues using the QR algorithm.
+
+        Returns a list of eigenvalues (real-valued).
+        Works best for symmetric matrices and matrices with real eigenvalues.
+        """
+        if not self.is_square():
+            raise MatrixError("Eigenvalues require a square matrix")
+        import math
+        n = self._rows
+        A = self._copy_data()
+
+        for _ in range(max_iter):
+            # QR decomposition via Gram-Schmidt
+            Q = [[0.0] * n for _ in range(n)]
+            R = [[0.0] * n for _ in range(n)]
+            for j in range(n):
+                v = [A[i][j] for i in range(n)]
+                for i in range(j):
+                    dot = sum(Q[k][i] * A[k][j] for k in range(n))
+                    R[i][j] = dot
+                    for k in range(n):
+                        v[k] -= dot * Q[k][i]
+                norm = math.sqrt(sum(x * x for x in v))
+                R[j][j] = norm
+                if norm < 1e-14:
+                    norm = 1e-14
+                for k in range(n):
+                    Q[k][j] = v[k] / norm
+            # A = R * Q
+            new_A = [[0.0] * n for _ in range(n)]
+            for r in range(n):
+                for c in range(n):
+                    new_A[r][c] = sum(R[r][k] * Q[k][c] for k in range(n))
+            A = new_A
+            # Check convergence
+            off = sum(abs(A[i][j]) for i in range(1, n) for j in range(i))
+            if off < 1e-10:
+                break
+
+        return [A[i][i] for i in range(n)]
+
+    def eigenvectors(self):
+        """Compute eigenvalues and eigenvectors.
+
+        Returns (eigenvalues, eigenvectors) where eigenvectors is a list
+        of Matrix column vectors.
+        """
+        if not self.is_square():
+            raise MatrixError("Eigenvectors require a square matrix")
+        import math
+        n = self._rows
+        evals = self.eigenvalues()
+        evecs = []
+
+        for lam in evals:
+            # Solve (A - lambda*I)x = 0 via RREF
+            shifted = [
+                [self._data[r][c] - (lam if r == c else 0.0) for c in range(n)]
+                for r in range(n)
+            ]
+            rref_data = Matrix(shifted).rref()
+
+            # Find free variable (last one without a pivot)
+            pivot_cols = set()
+            for r in range(n):
+                for c in range(n):
+                    if abs(rref_data[r, c]) > 1e-9:
+                        pivot_cols.add(c)
+                        break
+
+            free_col = None
+            for c in range(n - 1, -1, -1):
+                if c not in pivot_cols:
+                    free_col = c
+                    break
+
+            vec = [0.0] * n
+            if free_col is not None:
+                vec[free_col] = 1.0
+                for r in range(n):
+                    for c in range(n):
+                        if abs(rref_data[r, c]) > 1e-9:
+                            vec[c] = -rref_data[r, free_col]
+                            break
+            else:
+                # Fallback: use inverse iteration
+                shift = 1e-10
+                shifted_inv = Matrix([
+                    [self._data[r][c] - (lam - shift if r == c else 0.0)
+                     for c in range(n)]
+                    for r in range(n)
+                ])
+                try:
+                    inv = shifted_inv.inverse()
+                    vec = [1.0 / math.sqrt(n)] * n
+                    for _ in range(50):
+                        new_vec = [
+                            sum(inv[r, c] * vec[c] for c in range(n))
+                            for r in range(n)
+                        ]
+                        norm = math.sqrt(sum(x * x for x in new_vec))
+                        if norm < 1e-14:
+                            break
+                        vec = [x / norm for x in new_vec]
+                except MatrixError:
+                    vec = [0.0] * n
+                    vec[0] = 1.0
+
+            # Normalize
+            norm = math.sqrt(sum(x * x for x in vec))
+            if norm > 1e-14:
+                vec = [x / norm for x in vec]
+            evecs.append(Matrix([[x] for x in vec]))
+
+        return evals, evecs
+
     def to_list(self):
         """Return the matrix data as a list of lists."""
         return self._copy_data()

@@ -43,6 +43,7 @@ Operations:
   10 Matrix power              (A^n)
   11 Reduced row echelon form  (RREF)
   12 Identity matrix
+  13 Eigenvalues & eigenvectors
   0  Quit
 """
 
@@ -136,6 +137,15 @@ def run_calculator():
                     print("Invalid size.\n")
                     continue
                 result = identity(n)
+                print(f"\nI_{n} =\n{result}\n")
+
+            elif choice == "13":
+                A = prompt_matrix("A")
+                evals, evecs = A.eigenvectors()
+                print("\nEigenvalues and Eigenvectors:")
+                for i, (val, vec) in enumerate(zip(evals, evecs)):
+                    print(f"  λ{i+1} = {val:.6g}")
+                    print(f"  v{i+1} =\n{vec}\n")
                 print(f"\nI_{n} =\n{result}\n")
 
             else:

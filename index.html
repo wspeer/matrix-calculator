@@ -159,6 +159,7 @@
                 <button onclick="calc('trace')">Trace(A)</button>
                 <button onclick="calc('rank')">Rank(A)</button>
                 <button onclick="calc('rref')">RREF(A)</button>
+                <button onclick="calc('eigen')">Eigenvalues</button>
             </div>
             <div class="inline-group" style="margin-top: 0.75rem;">
                 <button onclick="calc('scalar')">Scalar &times; A</button>
@@ -315,6 +316,83 @@ function rank(m) {
     return r.filter(row => row.some(v => Math.abs(v) > 1e-9)).length;
 }
 
+function eigen(m, maxIter = 1000) {
+    const n = m.length;
+    if (n !== m[0].length) throw new Error('Eigenvalues require a square matrix');
+
+    // QR decomposition using Gram-Schmidt
+    function qrDecomp(a) {
+        const rows = a.length, cols = a[0].length;
+        const Q = Array.from({length: rows}, () => Array(cols).fill(0));
+        const R = Array.from({length: cols}, () => Array(cols).fill(0));
+        for (let j = 0; j < cols; j++) {
+            // Copy column j
+            const v = a.map(row => row[j]);
+            for (let i = 0; i < j; i++) {
+                let dot = 0;
+                for (let k = 0; k < rows; k++) dot += Q[k][i] * a[k][j];
+                R[i][j] = dot;
+                for (let k = 0; k < rows; k++) v[k] -= dot * Q[k][i];
+            }
+            let norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+            R[j][j] = norm;
+            if (norm < 1e-14) norm = 1e-14;
+            for (let k = 0; k < rows; k++) Q[k][j] = v[k] / norm;
+        }
+        return { Q, R };
+    }
+
+    // QR iteration to find eigenvalues
+    let A = m.map(r => [...r]);
+    for (let iter = 0; iter < maxIter; iter++) {
+        const { Q, R } = qrDecomp(A);
+        A = matMul(R, Q);
+        // Check if lower triangle is close to zero
+        let offDiag = 0;
+        for (let i = 1; i < n; i++)
+            for (let j = 0; j < i; j++)
+                offDiag += Math.abs(A[i][j]);
+        if (offDiag < 1e-10) break;
+    }
+
+    const eigenvalues = A.map((row, i) => row[i]);
+
+    // Compute eigenvectors via inverse iteration
+    const eigenvectors = [];
+    for (let ev = 0; ev < n; ev++) {
+        const lambda = eigenvalues[ev];
+        // (A - lambda*I) shifted
+        const shifted = m.map((row, r) => row.map((v, c) => r === c ? v - lambda + 1e-10 : v));
+        // Solve using a few iterations of inverse power method
+        let x = Array.from({length: n}, () => Math.random());
+        try {
+            const inv = inverse(shifted);
+            for (let iter = 0; iter < 50; iter++) {
+                const y = inv.map(row => row.reduce((s, v, k) => s + v * x[k], 0));
+                const norm = Math.sqrt(y.reduce((s, v) => s + v * v, 0));
+                if (norm < 1e-14) break;
+                x = y.map(v => v / norm);
+            }
+        } catch {
+            // If singular, use the null space approach
+            const shifted2 = m.map((row, r) => row.map((v, c) => r === c ? v - lambda : v));
+            const r = rref(shifted2);
+            x = Array(n).fill(0);
+            x[n - 1] = 1;
+            for (let i = n - 2; i >= 0; i--) {
+                let sum = 0;
+                for (let j = i + 1; j < n; j++) sum += r[i][j] * x[j];
+                x[i] = -sum;
+            }
+            const norm = Math.sqrt(x.reduce((s, v) => s + v * v, 0));
+            if (norm > 1e-14) x = x.map(v => v / norm);
+        }
+        eigenvectors.push(x);
+    }
+
+    return { eigenvalues, eigenvectors };
+}
+
 function matPow(m, n) {
     if (m.length !== m[0].length) throw new Error('Power requires a square matrix');
     if (n < 0) throw new Error('Exponent must be non-negative');
@@ -382,6 +460,24 @@ function calc(op) {
                 result = matPow(A, n);
                 label = `A^${n}`;
                 break;
+            }
+            case 'eigen': {
+                const { eigenvalues, eigenvectors } = eigen(A);
+                const fmtNum = v => {
+                    if (Math.abs(v) < 1e-10) v = 0;
+                    return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
+                };
+                let text = 'Eigenvalues:\n';
+                eigenvalues.forEach((val, i) => {
+                    text += `  λ${i + 1} = ${fmtNum(val)}\n`;
+                });
+                text += '\nEigenvectors:\n';
+                eigenvectors.forEach((vec, i) => {
+                    text += `  v${i + 1} = [ ${vec.map(fmtNum).join('  ')} ]\n`;
+                });
+                out.className = '';
+                out.textContent = text;
+                return;
             }
         }
         out.className = '';
