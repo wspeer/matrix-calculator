@@ -856,14 +856,33 @@ function calc(op) {
                     text += `  λ${i + 1} = ${fmtVal(val)}\n`;
                 });
                 text += '\nEigenvectors:\n';
-                eigenvectors.forEach((vec, i) => {
+                // Format each vector's entries as strings
+                const vecStrs = eigenvectors.map(vec => {
                     const intVec = tryIntegerVec(vec);
-                    if (intVec) {
-                        text += `  v${i + 1} = [ ${intVec.join('  ')} ]\n`;
-                    } else {
-                        text += `  v${i + 1} = [ ${vec.map(fmtVecEntry).join('  ')} ]\n`;
-                    }
+                    return intVec ? intVec.map(String) : vec.map(fmtVecEntry);
                 });
+                // Render as side-by-side column vectors
+                const n = eigenvectors[0].length;
+                const colWidths = vecStrs.map(strs =>
+                    Math.max(...strs.map(s => s.length))
+                );
+                const labelWidth = `v${eigenvectors.length}`.length;
+                // Header line with labels
+                text += '  ' + vecStrs.map((_, i) => {
+                    const lbl = `v${i + 1}`;
+                    const w = colWidths[i] + 4; // +4 for "[ " and " ]"
+                    const pad = Math.floor((w - lbl.length) / 2);
+                    return ' '.repeat(pad) + lbl + ' '.repeat(w - pad - lbl.length);
+                }).join('  ') + '\n';
+                for (let r = 0; r < n; r++) {
+                    const top = r === 0, bot = r === n - 1, mid = !top && !bot;
+                    text += '  ' + vecStrs.map((strs, vi) => {
+                        const s = strs[r].padStart(colWidths[vi]);
+                        const l = top ? '⎡' : bot ? '⎣' : '⎢';
+                        const rr = top ? '⎤' : bot ? '⎦' : '⎥';
+                        return `${l} ${s} ${rr}`;
+                    }).join('  ') + '\n';
+                }
                 out.className = '';
                 out.textContent = text;
                 lastResultMatrix = null;
