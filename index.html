@@ -731,6 +731,38 @@ function eigen(m, maxIter = 1000) {
     return { eigenvalues, eigenvectors };
 }
 
+// Try to scale a real eigenvector to integer form
+function tryIntegerVec(vec) {
+    // Only for real (non-complex) vectors
+    if (vec.some(v => isComplex(v) && Math.abs(v.im) > 1e-10)) return null;
+    const vals = vec.map(v => isComplex(v) ? v.re : v);
+    // Find the smallest nonzero absolute value
+    const nonzero = vals.filter(v => Math.abs(v) > 1e-10).map(Math.abs);
+    if (nonzero.length === 0) return null;
+    const minVal = Math.min(...nonzero);
+    // Try multiplying by 1/minVal * k for k = 1..12 to find integer form
+    for (let k = 1; k <= 12; k++) {
+        const scale = k / minVal;
+        const scaled = vals.map(v => v * scale);
+        if (scaled.every(v => Math.abs(v - Math.round(v)) < 1e-6)) {
+            const ints = scaled.map(Math.round);
+            // Reduce by GCD
+            const g = ints.reduce((a, b) => gcd(Math.abs(a), Math.abs(b)));
+            if (g > 0) {
+                const reduced = ints.map(v => v / g);
+                // Make first nonzero entry positive
+                const firstNonzero = reduced.find(v => v !== 0);
+                if (firstNonzero < 0) return reduced.map(v => -v);
+                return reduced;
+            }
+            return ints;
+        }
+    }
+    return null;
+}
+
+function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
+
 function matPow(m, n) {
     if (m.length !== m[0].length) throw new Error('Power requires a square matrix');
     if (n < 0) throw new Error('Exponent must be non-negative');
@@ -825,7 +857,12 @@ function calc(op) {
                 });
                 text += '\nEigenvectors:\n';
                 eigenvectors.forEach((vec, i) => {
-                    text += `  v${i + 1} = [ ${vec.map(fmtVecEntry).join('  ')} ]\n`;
+                    const intVec = tryIntegerVec(vec);
+                    if (intVec) {
+                        text += `  v${i + 1} = [ ${intVec.join('  ')} ]\n`;
+                    } else {
+                        text += `  v${i + 1} = [ ${vec.map(fmtVecEntry).join('  ')} ]\n`;
+                    }
                 });
                 out.className = '';
                 out.textContent = text;
