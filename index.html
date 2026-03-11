@@ -174,6 +174,18 @@
             <label>Result</label>
             <div id="result">Results appear here...</div>
             <button id="copyBtn" style="margin-top: 0.5rem; display: none;" onclick="copyResult()">Copy to clipboard</button>
+            <div id="sumControls" style="margin-top: 0.75rem; display: none;">
+                <div class="inline-group">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Sum of</span>
+                    <select id="sumType" class="scalar-input" style="width: auto; text-align: left;" onchange="updateSumIndex()">
+                        <option value="row">Row</option>
+                        <option value="col">Column</option>
+                    </select>
+                    <select id="sumIndex" class="scalar-input" style="width: auto; text-align: left;"></select>
+                    <button onclick="calcSum()">Calculate</button>
+                    <span id="sumResult" style="color: #4ade80; font-family: 'Fira Code', monospace;"></span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -193,6 +205,45 @@ function copyResult() {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 1500);
     });
+}
+
+function updateSumIndex() {
+    if (!lastResultMatrix) return;
+    const type = document.getElementById('sumType').value;
+    const sel = document.getElementById('sumIndex');
+    const count = type === 'row' ? lastResultMatrix.length : lastResultMatrix[0].length;
+    sel.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i + 1;
+        sel.appendChild(opt);
+    }
+    document.getElementById('sumResult').textContent = '';
+}
+
+function calcSum() {
+    if (!lastResultMatrix) return;
+    const type = document.getElementById('sumType').value;
+    const idx = parseInt(document.getElementById('sumIndex').value);
+    let sum;
+    if (type === 'row') {
+        sum = lastResultMatrix[idx].reduce((a, b) => a + b, 0);
+    } else {
+        sum = lastResultMatrix.reduce((a, row) => a + row[idx], 0);
+    }
+    const fmtSum = Math.abs(sum - Math.round(sum)) < 1e-9 ? Math.round(sum) : sum.toPrecision(6);
+    document.getElementById('sumResult').textContent = `= ${fmtSum}`;
+}
+
+function showSumControls() {
+    document.getElementById('sumControls').style.display = '';
+    updateSumIndex();
+}
+
+function hideSumControls() {
+    document.getElementById('sumControls').style.display = 'none';
+    document.getElementById('sumResult').textContent = '';
 }
 
 function parseMatrix(text) {
@@ -557,6 +608,7 @@ function calc(op) {
                 out.textContent = `det(A) = ${Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d.toPrecision(6)}`;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
                 return;
             }
             case 'inverse':
@@ -567,6 +619,7 @@ function calc(op) {
                 out.textContent = `trace(A) = ${Math.abs(t - Math.round(t)) < 1e-9 ? Math.round(t) : t.toPrecision(6)}`;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
                 return;
             }
             case 'rank':
@@ -574,6 +627,7 @@ function calc(op) {
                 out.textContent = `rank(A) = ${rank(A)}`;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
                 return;
             case 'rref':
                 result = rref(A); label = 'RREF(A)'; break;
@@ -607,6 +661,7 @@ function calc(op) {
                 out.textContent = text;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
                 return;
             }
         }
@@ -614,11 +669,13 @@ function calc(op) {
         out.textContent = `${label} =\n${formatMatrix(result)}`;
         lastResultMatrix = result;
         document.getElementById('copyBtn').style.display = '';
+        showSumControls();
     } catch (e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
         lastResultMatrix = null;
         document.getElementById('copyBtn').style.display = 'none';
+        hideSumControls();
     }
 }
 </script>
