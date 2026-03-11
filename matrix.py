@@ -271,13 +271,15 @@ class Matrix:
     def eigenvalues(self, max_iter=1000):
         """Compute eigenvalues using the QR algorithm.
 
-        Returns a list of eigenvalues (real-valued).
-        Works best for symmetric matrices and matrices with real eigenvalues.
+        Returns a list of eigenvalues (real or complex).
+        Complex eigenvalues are returned as Python complex numbers.
         """
         if not self.is_square():
             raise MatrixError("Eigenvalues require a square matrix")
-        import math
+        import math, cmath
         n = self._rows
+        if n == 1:
+            return [self._data[0][0]]
         A = self._copy_data()
 
         for _ in range(max_iter):
@@ -303,85 +305,182 @@ class Matrix:
                 for c in range(n):
                     new_A[r][c] = sum(R[r][k] * Q[k][c] for k in range(n))
             A = new_A
-            # Check convergence
-            off = sum(abs(A[i][j]) for i in range(1, n) for j in range(i))
-            if off < 1e-10:
+            # Check convergence: sub-diagonal elements should be zero
+            # (except within 2x2 blocks for complex eigenvalues)
+            converged = True
+            i = 0
+            while i < n - 1:
+                if abs(A[i + 1][i]) > 1e-10:
+                    # Check if this is part of a 2x2 block with complex eigenvalues
+                    a, b = A[i][i], A[i][i + 1]
+                    c, d = A[i + 1][i], A[i + 1][i + 1]
+                    disc = (a + d) ** 2 - 4 * (a * d - b * c)
+                    if disc < -1e-12:
+                        # Complex eigenvalue pair - this block is converged
+                        i += 2
+                        continue
+                    else:
+                        converged = False
+                        break
+                i += 1
+            if converged:
                 break
 
-        return [A[i][i] for i in range(n)]
+        # Extract eigenvalues from quasi-upper-triangular form
+        eigenvalues = []
+        i = 0
+        while i < n:
+            if i == n - 1 or abs(A[i + 1][i]) <= 1e-10:
+                # Real eigenvalue on diagonal
+                eigenvalues.append(A[i][i])
+                i += 1
+            else:
+                # 2x2 block: extract complex conjugate pair
+                a, b = A[i][i], A[i][i + 1]
+                c, d = A[i + 1][i], A[i + 1][i + 1]
+                tr = a + d
+                det_val = a * d - b * c
+                disc = tr * tr - 4 * det_val
+                if disc < 0:
+                    sq = cmath.sqrt(disc)
+                    eigenvalues.append((tr + sq) / 2)
+                    eigenvalues.append((tr - sq) / 2)
+                else:
+                    sq = math.sqrt(disc)
+                    eigenvalues.append((tr + sq) / 2)
+                    eigenvalues.append((tr - sq) / 2)
+                i += 2
+
+        return eigenvalues
 
     def eigenvectors(self):
         """Compute eigenvalues and eigenvectors.
 
-        Returns (eigenvalues, eigenvectors) where eigenvectors is a list
-        of Matrix column vectors.
+        Returns (eigenvalues, eigenvectors) where eigenvectors is a list.
+        For real eigenvalues, eigenvectors are Matrix column vectors.
+        For complex eigenvalues, eigenvectors are lists of complex numbers.
         """
         if not self.is_square():
             raise MatrixError("Eigenvectors require a square matrix")
-        import math
+        import math, cmath
         n = self._rows
         evals = self.eigenvalues()
         evecs = []
 
         for lam in evals:
-            # Solve (A - lambda*I)x = 0 via RREF
-            shifted = [
-                [self._data[r][c] - (lam if r == c else 0.0) for c in range(n)]
-                for r in range(n)
-            ]
-            rref_data = Matrix(shifted).rref()
+            is_complex = isinstance(lam, complex) and abs(lam.imag) > 1e-10
 
-            # Find free variable (last one without a pivot)
-            pivot_cols = set()
-            for r in range(n):
-                for c in range(n):
-                    if abs(rref_data[r, c]) > 1e-9:
-                        pivot_cols.add(c)
+            if is_complex:
+                # Complex Gaussian elimination on (A - λI)
+                aug = [
+                    [complex(self._data[r][c]) - (lam if r == c else 0)
+                     for c in range(n)]
+                    for r in range(n)
+                ]
+                # Row reduce
+                pivot_row = 0
+                pivot_cols = []
+                for col in range(n):
+                    # Find pivot
+                    found = None
+                    for row in range(pivot_row, n):
+                        if abs(aug[row][col]) > 1e-10:
+                            found = row
+                            break
+                    if found is None:
+                        continue
+                    aug[found], aug[pivot_row] = aug[pivot_row], aug[found]
+                    p = aug[pivot_row][col]
+                    aug[pivot_row] = [x / p for x in aug[pivot_row]]
+                    for row in range(n):
+                        if row != pivot_row and abs(aug[row][col]) > 1e-10:
+                            f = aug[row][col]
+                            aug[row] = [aug[row][k] - f * aug[pivot_row][k]
+                                        for k in range(n)]
+                    pivot_cols.append(col)
+                    pivot_row += 1
+
+                # Find a free variable
+                free_col = None
+                for c in range(n - 1, -1, -1):
+                    if c not in pivot_cols:
+                        free_col = c
                         break
 
-            free_col = None
-            for c in range(n - 1, -1, -1):
-                if c not in pivot_cols:
-                    free_col = c
-                    break
+                vec = [complex(0)] * n
+                if free_col is not None:
+                    vec[free_col] = complex(1)
+                    for r in range(len(pivot_cols)):
+                        vec[pivot_cols[r]] = -aug[r][free_col]
+                else:
+                    vec[n - 1] = complex(1)
 
-            vec = [0.0] * n
-            if free_col is not None:
-                vec[free_col] = 1.0
+                # Normalize
+                norm = math.sqrt(sum(abs(x) ** 2 for x in vec))
+                if norm > 1e-14:
+                    vec = [x / norm for x in vec]
+                evecs.append(vec)
+            else:
+                real_lam = lam.real if isinstance(lam, complex) else lam
+                # Solve (A - lambda*I)x = 0 via RREF
+                shifted = [
+                    [self._data[r][c] - (real_lam if r == c else 0.0)
+                     for c in range(n)]
+                    for r in range(n)
+                ]
+                rref_data = Matrix(shifted).rref()
+
+                # Find free variable (last one without a pivot)
+                pivot_cols = set()
                 for r in range(n):
                     for c in range(n):
                         if abs(rref_data[r, c]) > 1e-9:
-                            vec[c] = -rref_data[r, free_col]
+                            pivot_cols.add(c)
                             break
-            else:
-                # Fallback: use inverse iteration
-                shift = 1e-10
-                shifted_inv = Matrix([
-                    [self._data[r][c] - (lam - shift if r == c else 0.0)
-                     for c in range(n)]
-                    for r in range(n)
-                ])
-                try:
-                    inv = shifted_inv.inverse()
-                    vec = [1.0 / math.sqrt(n)] * n
-                    for _ in range(50):
-                        new_vec = [
-                            sum(inv[r, c] * vec[c] for c in range(n))
-                            for r in range(n)
-                        ]
-                        norm = math.sqrt(sum(x * x for x in new_vec))
-                        if norm < 1e-14:
-                            break
-                        vec = [x / norm for x in new_vec]
-                except MatrixError:
-                    vec = [0.0] * n
-                    vec[0] = 1.0
 
-            # Normalize
-            norm = math.sqrt(sum(x * x for x in vec))
-            if norm > 1e-14:
-                vec = [x / norm for x in vec]
-            evecs.append(Matrix([[x] for x in vec]))
+                free_col = None
+                for c in range(n - 1, -1, -1):
+                    if c not in pivot_cols:
+                        free_col = c
+                        break
+
+                vec = [0.0] * n
+                if free_col is not None:
+                    vec[free_col] = 1.0
+                    for r in range(n):
+                        for c in range(n):
+                            if abs(rref_data[r, c]) > 1e-9:
+                                vec[c] = -rref_data[r, free_col]
+                                break
+                else:
+                    # Fallback: use inverse iteration
+                    shift = 1e-10
+                    shifted_inv = Matrix([
+                        [self._data[r][c] - (real_lam - shift if r == c else 0.0)
+                         for c in range(n)]
+                        for r in range(n)
+                    ])
+                    try:
+                        inv = shifted_inv.inverse()
+                        vec = [1.0 / math.sqrt(n)] * n
+                        for _ in range(50):
+                            new_vec = [
+                                sum(inv[r, c] * vec[c] for c in range(n))
+                                for r in range(n)
+                            ]
+                            norm = math.sqrt(sum(x * x for x in new_vec))
+                            if norm < 1e-14:
+                                break
+                            vec = [x / norm for x in new_vec]
+                    except MatrixError:
+                        vec = [0.0] * n
+                        vec[0] = 1.0
+
+                # Normalize
+                norm = math.sqrt(sum(x * x for x in vec))
+                if norm > 1e-14:
+                    vec = [x / norm for x in vec]
+                evecs.append(Matrix([[x] for x in vec]))
 
         return evals, evecs
 

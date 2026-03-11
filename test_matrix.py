@@ -293,6 +293,51 @@ def test_eigenvectors_verify_Av_eq_lv():
             assert Av[r, 0] == pytest.approx(lv[r, 0], abs=1e-4)
 
 
+def test_eigenvalues_complex_rotation():
+    """A 90-degree rotation matrix has eigenvalues +/- i."""
+    A = mat([[0, -1], [1, 0]])
+    evals = A.eigenvalues()
+    # Should be complex: +i and -i
+    assert all(isinstance(e, complex) for e in evals)
+    imags = sorted([e.imag for e in evals])
+    assert imags[0] == pytest.approx(-1.0, abs=1e-6)
+    assert imags[1] == pytest.approx(1.0, abs=1e-6)
+    assert all(abs(e.real) < 1e-6 for e in evals)
+
+
+def test_eigenvalues_complex_3x3():
+    """A 3x3 with one real and two complex eigenvalues."""
+    # [[2, -1, 0], [1, 2, 0], [0, 0, 3]] has eigenvalues 2+i, 2-i, 3
+    A = mat([[2, -1, 0], [1, 2, 0], [0, 0, 3]])
+    evals = A.eigenvalues()
+    # Sort: reals first, then by imaginary
+    reals = [e for e in evals if not isinstance(e, complex) or abs(e.imag) < 1e-6]
+    cpx = [e for e in evals if isinstance(e, complex) and abs(e.imag) > 1e-6]
+    assert len(reals) == 1
+    real_val = reals[0].real if isinstance(reals[0], complex) else reals[0]
+    assert real_val == pytest.approx(3.0, abs=1e-6)
+    assert len(cpx) == 2
+    cpx_sorted = sorted(cpx, key=lambda e: e.imag)
+    assert cpx_sorted[0].real == pytest.approx(2.0, abs=1e-6)
+    assert cpx_sorted[0].imag == pytest.approx(-1.0, abs=1e-6)
+    assert cpx_sorted[1].real == pytest.approx(2.0, abs=1e-6)
+    assert cpx_sorted[1].imag == pytest.approx(1.0, abs=1e-6)
+
+
+def test_eigenvectors_complex_verify():
+    """Verify A*v = λ*v for complex eigenpairs."""
+    A = mat([[0, -1], [1, 0]])
+    evals, evecs = A.eigenvectors()
+    for lam, vec in zip(evals, evecs):
+        # A*v manually (vec is a list of complex numbers)
+        assert isinstance(vec, list)
+        n = len(vec)
+        for r in range(n):
+            Av = sum(complex(A[r, c]) * vec[c] for c in range(n))
+            lv = lam * vec[r]
+            assert abs(Av - lv) < 1e-4
+
+
 def test_eigenvalues_non_square_raises():
     with pytest.raises(MatrixError):
         mat([[1, 2, 3]]).eigenvalues()

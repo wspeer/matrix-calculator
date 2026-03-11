@@ -144,8 +144,21 @@ def run_calculator():
                 evals, evecs = A.eigenvectors()
                 print("\nEigenvalues and Eigenvectors:")
                 for i, (val, vec) in enumerate(zip(evals, evecs)):
-                    print(f"  λ{i+1} = {val:.6g}")
-                    print(f"  v{i+1} =\n{vec}\n")
+                    if isinstance(val, complex) and abs(val.imag) > 1e-10:
+                        print(f"  λ{i+1} = {val.real:.6g} {'+' if val.imag >= 0 else '−'} {abs(val.imag):.6g}i")
+                    else:
+                        rv = val.real if isinstance(val, complex) else val
+                        print(f"  λ{i+1} = {rv:.6g}")
+                    if isinstance(vec, list):
+                        entries = []
+                        for v in vec:
+                            if isinstance(v, complex) and abs(v.imag) > 1e-10:
+                                entries.append(f"{v.real:.4g}{'+' if v.imag >= 0 else '-'}{abs(v.imag):.4g}i")
+                            else:
+                                entries.append(f"{v.real if isinstance(v, complex) else v:.4g}")
+                        print(f"  v{i+1} = [ {', '.join(entries)} ]\n")
+                    else:
+                        print(f"  v{i+1} =\n{vec}\n")
                 print(f"\nI_{n} =\n{result}\n")
 
             else:

@@ -316,6 +316,33 @@ function rank(m) {
     return r.filter(row => row.some(v => Math.abs(v) > 1e-9)).length;
 }
 
+// Complex number helpers: {re, im}
+function cAdd(a, b) { return {re: a.re + b.re, im: a.im + b.im}; }
+function cSub(a, b) { return {re: a.re - b.re, im: a.im - b.im}; }
+function cMul(a, b) { return {re: a.re*b.re - a.im*b.im, im: a.re*b.im + a.im*b.re}; }
+function cDiv(a, b) {
+    const d = b.re*b.re + b.im*b.im;
+    return {re: (a.re*b.re + a.im*b.im)/d, im: (a.im*b.re - a.re*b.im)/d};
+}
+function cAbs(a) { return Math.sqrt(a.re*a.re + a.im*a.im); }
+function cSqrt(a) {
+    const r = cAbs(a), angle = Math.atan2(a.im, a.re);
+    return {re: Math.sqrt(r)*Math.cos(angle/2), im: Math.sqrt(r)*Math.sin(angle/2)};
+}
+function cReal(v) { return {re: v, im: 0}; }
+function isComplex(v) { return typeof v === 'object' && 're' in v; }
+function cIsReal(v) { return !isComplex(v) || Math.abs(v.im) < 1e-10; }
+
+function fmtComplex(v) {
+    if (!isComplex(v)) v = {re: v, im: 0};
+    const fmtNum = x => { const r = Math.abs(x); return Math.abs(r - Math.round(r)) < 1e-9 ? Math.round(x).toString() : x.toPrecision(6); };
+    if (Math.abs(v.im) < 1e-10) return fmtNum(v.re);
+    const rp = Math.abs(v.re) < 1e-10 ? '' : fmtNum(v.re);
+    const ip = Math.abs(Math.abs(v.im) - 1) < 1e-10 ? '' : fmtNum(Math.abs(v.im));
+    const sign = v.im >= 0 ? (rp ? ' + ' : '') : (rp ? ' − ' : '−');
+    return `${rp}${sign}${ip}i`;
+}
+
 function eigen(m, maxIter = 1000) {
     const n = m.length;
     if (n !== m[0].length) throw new Error('Eigenvalues require a square matrix');
@@ -326,7 +353,6 @@ function eigen(m, maxIter = 1000) {
         const Q = Array.from({length: rows}, () => Array(cols).fill(0));
         const R = Array.from({length: cols}, () => Array(cols).fill(0));
         for (let j = 0; j < cols; j++) {
-            // Copy column j
             const v = a.map(row => row[j]);
             for (let i = 0; i < j; i++) {
                 let dot = 0;
@@ -342,52 +368,124 @@ function eigen(m, maxIter = 1000) {
         return { Q, R };
     }
 
-    // QR iteration to find eigenvalues
+    // QR iteration
     let A = m.map(r => [...r]);
     for (let iter = 0; iter < maxIter; iter++) {
         const { Q, R } = qrDecomp(A);
         A = matMul(R, Q);
-        // Check if lower triangle is close to zero
-        let offDiag = 0;
-        for (let i = 1; i < n; i++)
-            for (let j = 0; j < i; j++)
-                offDiag += Math.abs(A[i][j]);
-        if (offDiag < 1e-10) break;
+        // Check convergence: sub-diagonal near zero (allowing 2x2 complex blocks)
+        let converged = true;
+        let i = 0;
+        while (i < n - 1) {
+            if (Math.abs(A[i+1][i]) > 1e-10) {
+                const a = A[i][i], b = A[i][i+1], c = A[i+1][i], d = A[i+1][i+1];
+                const disc = (a+d)*(a+d) - 4*(a*d - b*c);
+                if (disc < -1e-12) { i += 2; continue; } // complex block, ok
+                converged = false; break;
+            }
+            i++;
+        }
+        if (converged) break;
     }
 
-    const eigenvalues = A.map((row, i) => row[i]);
+    // Extract eigenvalues from quasi-upper-triangular form
+    const eigenvalues = [];
+    let i = 0;
+    while (i < n) {
+        if (i === n - 1 || Math.abs(A[i+1][i]) <= 1e-10) {
+            eigenvalues.push(A[i][i]);
+            i++;
+        } else {
+            const a = A[i][i], b = A[i][i+1], c = A[i+1][i], d = A[i+1][i+1];
+            const tr = a + d, detVal = a*d - b*c;
+            const disc = tr*tr - 4*detVal;
+            if (disc < 0) {
+                const sq = cSqrt(cReal(disc));
+                eigenvalues.push({re: (tr + sq.re)/2, im: sq.im/2});
+                eigenvalues.push({re: (tr - sq.re)/2, im: -sq.im/2});
+            } else {
+                const sq = Math.sqrt(disc);
+                eigenvalues.push((tr + sq) / 2);
+                eigenvalues.push((tr - sq) / 2);
+            }
+            i += 2;
+        }
+    }
 
-    // Compute eigenvectors via inverse iteration
+    // Compute eigenvectors
     const eigenvectors = [];
     for (let ev = 0; ev < n; ev++) {
-        const lambda = eigenvalues[ev];
-        // (A - lambda*I) shifted
-        const shifted = m.map((row, r) => row.map((v, c) => r === c ? v - lambda + 1e-10 : v));
-        // Solve using a few iterations of inverse power method
-        let x = Array.from({length: n}, () => Math.random());
-        try {
-            const inv = inverse(shifted);
-            for (let iter = 0; iter < 50; iter++) {
-                const y = inv.map(row => row.reduce((s, v, k) => s + v * x[k], 0));
-                const norm = Math.sqrt(y.reduce((s, v) => s + v * v, 0));
-                if (norm < 1e-14) break;
-                x = y.map(v => v / norm);
+        const lam = eigenvalues[ev];
+        const lamIsComplex = isComplex(lam) && Math.abs(lam.im) > 1e-10;
+
+        if (lamIsComplex) {
+            // Complex Gaussian elimination on (A - λI)
+            const aug = m.map((row, r) => row.map((v, c) =>
+                cSub(cReal(v), r === c ? lam : cReal(0))
+            ));
+            let pivotRow = 0;
+            const pivotCols = [];
+            for (let col = 0; col < n; col++) {
+                let found = -1;
+                for (let row = pivotRow; row < n; row++) {
+                    if (cAbs(aug[row][col]) > 1e-10) { found = row; break; }
+                }
+                if (found < 0) continue;
+                [aug[found], aug[pivotRow]] = [aug[pivotRow], aug[found]];
+                const p = aug[pivotRow][col];
+                aug[pivotRow] = aug[pivotRow].map(x => cDiv(x, p));
+                for (let row = 0; row < n; row++) {
+                    if (row !== pivotRow && cAbs(aug[row][col]) > 1e-10) {
+                        const f = aug[row][col];
+                        aug[row] = aug[row].map((x, k) => cSub(x, cMul(f, aug[pivotRow][k])));
+                    }
+                }
+                pivotCols.push(col);
+                pivotRow++;
             }
-        } catch {
-            // If singular, use the null space approach
-            const shifted2 = m.map((row, r) => row.map((v, c) => r === c ? v - lambda : v));
-            const r = rref(shifted2);
-            x = Array(n).fill(0);
-            x[n - 1] = 1;
-            for (let i = n - 2; i >= 0; i--) {
-                let sum = 0;
-                for (let j = i + 1; j < n; j++) sum += r[i][j] * x[j];
-                x[i] = -sum;
+            let freeCol = -1;
+            for (let c = n - 1; c >= 0; c--) {
+                if (!pivotCols.includes(c)) { freeCol = c; break; }
             }
-            const norm = Math.sqrt(x.reduce((s, v) => s + v * v, 0));
-            if (norm > 1e-14) x = x.map(v => v / norm);
+            const vec = Array.from({length: n}, () => cReal(0));
+            if (freeCol >= 0) {
+                vec[freeCol] = cReal(1);
+                for (let r = 0; r < pivotCols.length; r++) {
+                    vec[pivotCols[r]] = cMul(cReal(-1), aug[r][freeCol]);
+                }
+            } else {
+                vec[n - 1] = cReal(1);
+            }
+            const norm = Math.sqrt(vec.reduce((s, x) => s + cAbs(x)**2, 0));
+            if (norm > 1e-14) vec.forEach((x, k) => vec[k] = cDiv(x, cReal(norm)));
+            eigenvectors.push(vec);
+        } else {
+            const realLam = isComplex(lam) ? lam.re : lam;
+            const shifted = m.map((row, r) => row.map((v, c) => r === c ? v - realLam + 1e-10 : v));
+            let x = Array.from({length: n}, () => Math.random());
+            try {
+                const inv = inverse(shifted);
+                for (let iter = 0; iter < 50; iter++) {
+                    const y = inv.map(row => row.reduce((s, v, k) => s + v * x[k], 0));
+                    const norm = Math.sqrt(y.reduce((s, v) => s + v * v, 0));
+                    if (norm < 1e-14) break;
+                    x = y.map(v => v / norm);
+                }
+            } catch {
+                const shifted2 = m.map((row, r) => row.map((v, c) => r === c ? v - realLam : v));
+                const r = rref(shifted2);
+                x = Array(n).fill(0);
+                x[n - 1] = 1;
+                for (let ii = n - 2; ii >= 0; ii--) {
+                    let sum = 0;
+                    for (let j = ii + 1; j < n; j++) sum += r[ii][j] * x[j];
+                    x[ii] = -sum;
+                }
+                const norm = Math.sqrt(x.reduce((s, v) => s + v * v, 0));
+                if (norm > 1e-14) x = x.map(v => v / norm);
+            }
+            eigenvectors.push(x);
         }
-        eigenvectors.push(x);
     }
 
     return { eigenvalues, eigenvectors };
@@ -463,17 +561,15 @@ function calc(op) {
             }
             case 'eigen': {
                 const { eigenvalues, eigenvectors } = eigen(A);
-                const fmtNum = v => {
-                    if (Math.abs(v) < 1e-10) v = 0;
-                    return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
-                };
+                const fmtVal = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+                const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
                 let text = 'Eigenvalues:\n';
                 eigenvalues.forEach((val, i) => {
-                    text += `  λ${i + 1} = ${fmtNum(val)}\n`;
+                    text += `  λ${i + 1} = ${fmtVal(val)}\n`;
                 });
                 text += '\nEigenvectors:\n';
                 eigenvectors.forEach((vec, i) => {
-                    text += `  v${i + 1} = [ ${vec.map(fmtNum).join('  ')} ]\n`;
+                    text += `  v${i + 1} = [ ${vec.map(fmtVecEntry).join('  ')} ]\n`;
                 });
                 out.className = '';
                 out.textContent = text;
