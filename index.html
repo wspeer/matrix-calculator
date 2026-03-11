@@ -96,9 +96,10 @@
             font-size: 0.9rem;
             text-align: center;
         }
-        .scalar-input:focus {
+        .scalar-input:focus, #arithInput:focus {
             outline: none;
             border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
         }
         .inline-group {
             display: flex;
@@ -187,6 +188,21 @@
                 </div>
             </div>
         </div>
+        <div class="section">
+            <label>Arithmetic</label>
+            <div style="display: flex; gap: 0.75rem; align-items: start; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <input type="text" id="arithInput" placeholder="e.g. 2^10 + sqrt(144) / 3"
+                        style="width: 100%; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+                        border-radius: 8px; padding: 0.75rem; font-family: 'Fira Code','Consolas',monospace;
+                        font-size: 1rem;" oninput="evalArith()">
+                    <p class="hint">Supports: + − * / ^ ( ) % | sqrt sin cos tan asin acos atan log ln abs ceil floor round pi e</p>
+                </div>
+                <div id="arithResult" style="padding: 0.75rem; font-family: 'Fira Code','Consolas',monospace;
+                    font-size: 1.1rem; color: #4ade80; min-width: 120px;">
+                </div>
+            </div>
+        </div>
     </div>
 
 <script>
@@ -244,6 +260,160 @@ function showSumControls() {
 function hideSumControls() {
     document.getElementById('sumControls').style.display = 'none';
     document.getElementById('sumResult').textContent = '';
+}
+
+// --- Arithmetic expression evaluator (recursive descent, no eval) ---
+function evalArith() {
+    const input = document.getElementById('arithInput').value.trim();
+    const out = document.getElementById('arithResult');
+    if (!input) { out.textContent = ''; out.style.color = '#4ade80'; return; }
+    try {
+        const result = parseExpr(input);
+        const fmt = Math.abs(result - Math.round(result)) < 1e-9 && Math.abs(result) < 1e15
+            ? Math.round(result).toString()
+            : result.toPrecision(10).replace(/\.?0+$/, '');
+        out.textContent = `= ${fmt}`;
+        out.style.color = '#4ade80';
+    } catch (e) {
+        out.textContent = e.message;
+        out.style.color = '#f87171';
+    }
+}
+
+function parseExpr(str) {
+    const tokens = tokenize(str);
+    let pos = 0;
+
+    function peek() { return tokens[pos] || null; }
+    function consume(expected) {
+        const t = tokens[pos];
+        if (expected && (!t || t.value !== expected))
+            throw new Error(`Expected '${expected}'`);
+        pos++;
+        return t;
+    }
+
+    // expression = term (('+' | '-') term)*
+    function expression() {
+        let left = term();
+        while (peek() && (peek().value === '+' || peek().value === '-')) {
+            const op = consume().value;
+            const right = term();
+            left = op === '+' ? left + right : left - right;
+        }
+        return left;
+    }
+
+    // term = unary (('*' | '/' | '%') unary)*
+    function term() {
+        let left = unary();
+        while (peek() && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
+            const op = consume().value;
+            const right = unary();
+            if (op === '*') left *= right;
+            else if (op === '/') { if (right === 0) throw new Error('Division by zero'); left /= right; }
+            else left %= right;
+        }
+        return left;
+    }
+
+    // unary = ('-' | '+') unary | power
+    function unary() {
+        if (peek() && peek().value === '-') { consume(); return -unary(); }
+        if (peek() && peek().value === '+') { consume(); return unary(); }
+        return power();
+    }
+
+    // power = atom ('^' unary)?
+    function power() {
+        let base = atom();
+        if (peek() && peek().value === '^') {
+            consume();
+            const exp = unary();
+            base = Math.pow(base, exp);
+        }
+        return base;
+    }
+
+    const funcs = {
+        sqrt: Math.sqrt, sin: Math.sin, cos: Math.cos, tan: Math.tan,
+        asin: Math.asin, acos: Math.acos, atan: Math.atan,
+        log: Math.log10, ln: Math.log, abs: Math.abs,
+        ceil: Math.ceil, floor: Math.floor, round: Math.round,
+        exp: Math.exp,
+    };
+    const constants = { pi: Math.PI, e: Math.E };
+
+    // atom = number | constant | func '(' expr ')' | '(' expr ')' | '|' expr '|'
+    function atom() {
+        const t = peek();
+        if (!t) throw new Error('Unexpected end of expression');
+
+        if (t.type === 'number') { consume(); return parseFloat(t.value); }
+
+        if (t.type === 'ident') {
+            const name = t.value.toLowerCase();
+            if (name in constants) { consume(); return constants[name]; }
+            if (name in funcs) {
+                consume();
+                consume('(');
+                const arg = expression();
+                consume(')');
+                return funcs[name](arg);
+            }
+            throw new Error(`Unknown: '${t.value}'`);
+        }
+
+        if (t.value === '(') {
+            consume();
+            const val = expression();
+            consume(')');
+            return val;
+        }
+
+        if (t.value === '|') {
+            consume();
+            const val = expression();
+            consume('|');
+            return Math.abs(val);
+        }
+
+        throw new Error(`Unexpected '${t.value}'`);
+    }
+
+    const result = expression();
+    if (pos < tokens.length) throw new Error(`Unexpected '${tokens[pos].value}'`);
+    return result;
+}
+
+function tokenize(str) {
+    const tokens = [];
+    let i = 0;
+    while (i < str.length) {
+        if (/\s/.test(str[i])) { i++; continue; }
+        if (/[0-9.]/.test(str[i])) {
+            let num = '';
+            while (i < str.length && /[0-9.eE]/.test(str[i])) {
+                if ((str[i] === 'e' || str[i] === 'E') && i + 1 < str.length && (str[i+1] === '+' || str[i+1] === '-')) {
+                    num += str[i++]; num += str[i++];
+                } else { num += str[i++]; }
+            }
+            tokens.push({ type: 'number', value: num });
+            continue;
+        }
+        if (/[a-zA-Z_]/.test(str[i])) {
+            let id = '';
+            while (i < str.length && /[a-zA-Z0-9_]/.test(str[i])) id += str[i++];
+            tokens.push({ type: 'ident', value: id });
+            continue;
+        }
+        if ('+-*/%^()|'.includes(str[i])) {
+            tokens.push({ type: 'op', value: str[i++] });
+            continue;
+        }
+        throw new Error(`Unexpected character '${str[i]}'`);
+    }
+    return tokens;
 }
 
 function parseMatrix(text) {
