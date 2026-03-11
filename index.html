@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Calculator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #38bdf8;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        textarea {
+            width: 100%;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 80px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+        .input-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .input-row > div { flex: 1; min-width: 250px; }
+        .op-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem;
+        }
+        button {
+            background: #334155;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        button:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+        }
+        .scalar-input {
+            width: 80px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.6rem;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .scalar-input:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+        .inline-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        #result {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 1rem;
+            white-space: pre;
+            overflow-x: auto;
+            min-height: 60px;
+            color: #4ade80;
+        }
+        .error { color: #f87171; }
+        .hint {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 0.35rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Matrix Calculator</h1>
+        <p class="subtitle">Enter matrices row by row, one row per line, values separated by spaces</p>
+
+        <div class="section">
+            <div class="input-row">
+                <div>
+                    <label>Matrix A</label>
+                    <textarea id="matA" placeholder="1 2&#10;3 4">1 2
+3 4</textarea>
+                    <p class="hint">Example: "1 2" on first line, "3 4" on second</p>
+                </div>
+                <div>
+                    <label>Matrix B</label>
+                    <textarea id="matB" placeholder="5 6&#10;7 8">5 6
+7 8</textarea>
+                    <p class="hint">Used for add, subtract, multiply operations</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Operations</label>
+            <div class="op-grid">
+                <button onclick="calc('add')">A + B</button>
+                <button onclick="calc('sub')">A &minus; B</button>
+                <button onclick="calc('mul')">A &times; B</button>
+                <button onclick="calc('transpose')">Transpose A</button>
+                <button onclick="calc('det')">det(A)</button>
+                <button onclick="calc('inverse')">A&sup1;</button>
+                <button onclick="calc('trace')">Trace(A)</button>
+                <button onclick="calc('rank')">Rank(A)</button>
+                <button onclick="calc('rref')">RREF(A)</button>
+            </div>
+            <div class="inline-group" style="margin-top: 0.75rem;">
+                <button onclick="calc('scalar')">Scalar &times; A</button>
+                <input type="number" id="scalar" class="scalar-input" value="2" step="any">
+                <button onclick="calc('power')">A ^ n</button>
+                <input type="number" id="power" class="scalar-input" value="2" min="0" step="1">
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Result</label>
+            <div id="result">Results appear here...</div>
+        </div>
+    </div>
+
+<script>
+function parseMatrix(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length === 0) throw new Error('Matrix is empty');
+    const data = lines.map((line, i) => {
+        const nums = line.trim().split(/[\s,]+/).map(Number);
+        if (nums.some(isNaN)) throw new Error(`Invalid number in row ${i + 1}`);
+        return nums;
+    });
+    const cols = data[0].length;
+    if (data.some(row => row.length !== cols))
+        throw new Error('All rows must have the same number of columns');
+    return data;
+}
+
+function formatMatrix(m) {
+    const strs = m.map(row => row.map(v => {
+        if (Math.abs(v) < 1e-10) v = 0;
+        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
+    }));
+    const widths = [];
+    for (let c = 0; c < strs[0].length; c++) {
+        widths.push(Math.max(...strs.map(row => row[c].length)));
+    }
+    return strs.map(row =>
+        '[ ' + row.map((s, c) => s.padStart(widths[c])).join('  ') + ' ]'
+    ).join('\n');
+}
+
+function matAdd(a, b) {
+    if (a.length !== b.length || a[0].length !== b[0].length)
+        throw new Error(`Shape mismatch: ${a.length}×${a[0].length} vs ${b.length}×${b[0].length}`);
+    return a.map((row, r) => row.map((v, c) => v + b[r][c]));
+}
+
+function matSub(a, b) {
+    if (a.length !== b.length || a[0].length !== b[0].length)
+        throw new Error(`Shape mismatch: ${a.length}×${a[0].length} vs ${b.length}×${b[0].length}`);
+    return a.map((row, r) => row.map((v, c) => v - b[r][c]));
+}
+
+function matMul(a, b) {
+    if (a[0].length !== b.length)
+        throw new Error(`Cannot multiply ${a.length}×${a[0].length} by ${b.length}×${b[0].length}`);
+    const rows = a.length, inner = a[0].length, cols = b[0].length;
+    const result = [];
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            let sum = 0;
+            for (let k = 0; k < inner; k++) sum += a[r][k] * b[k][c];
+            row.push(sum);
+        }
+        result.push(row);
+    }
+    return result;
+}
+
+function transpose(m) {
+    return m[0].map((_, c) => m.map(row => row[c]));
+}
+
+function det(m) {
+    const n = m.length;
+    if (n !== m[0].length) throw new Error('Determinant requires a square matrix');
+    const d = m.map(r => [...r]);
+    let sign = 1;
+    for (let col = 0; col < n; col++) {
+        let pivot = null;
+        for (let row = col; row < n; row++) {
+            if (Math.abs(d[row][col]) > 1e-12) { pivot = row; break; }
+        }
+        if (pivot === null) return 0;
+        if (pivot !== col) { [d[col], d[pivot]] = [d[pivot], d[col]]; sign *= -1; }
+        for (let row = col + 1; row < n; row++) {
+            const f = d[row][col] / d[col][col];
+            for (let k = col; k < n; k++) d[row][k] -= f * d[col][k];
+        }
+    }
+    let result = sign;
+    for (let i = 0; i < n; i++) result *= d[i][i];
+    return result;
+}
+
+function inverse(m) {
+    const n = m.length;
+    if (n !== m[0].length) throw new Error('Inverse requires a square matrix');
+    const aug = m.map((row, r) => [...row, ...Array.from({length: n}, (_, c) => r === c ? 1 : 0)]);
+    for (let col = 0; col < n; col++) {
+        let pivot = null;
+        for (let row = col; row < n; row++) {
+            if (Math.abs(aug[row][col]) > 1e-12) { pivot = row; break; }
+        }
+        if (pivot === null) throw new Error('Matrix is singular and cannot be inverted');
+        if (pivot !== col) [aug[col], aug[pivot]] = [aug[pivot], aug[col]];
+        const p = aug[col][col];
+        aug[col] = aug[col].map(v => v / p);
+        for (let row = 0; row < n; row++) {
+            if (row !== col) {
+                const f = aug[row][col];
+                aug[row] = aug[row].map((v, k) => v - f * aug[col][k]);
+            }
+        }
+    }
+    return aug.map(row => row.slice(n));
+}
+
+function trace(m) {
+    if (m.length !== m[0].length) throw new Error('Trace requires a square matrix');
+    return m.reduce((sum, row, i) => sum + row[i], 0);
+}
+
+function rref(m) {
+    const d = m.map(r => [...r]);
+    const rows = d.length, cols = d[0].length;
+    let pr = 0;
+    for (let col = 0; col < cols && pr < rows; col++) {
+        let found = null;
+        for (let row = pr; row < rows; row++) {
+            if (Math.abs(d[row][col]) > 1e-12) { found = row; break; }
+        }
+        if (found === null) continue;
+        [d[pr], d[found]] = [d[found], d[pr]];
+        const p = d[pr][col];
+        d[pr] = d[pr].map(v => v / p);
+        for (let row = 0; row < rows; row++) {
+            if (row !== pr) {
+                const f = d[row][col];
+                d[row] = d[row].map((v, k) => v - f * d[pr][k]);
+            }
+        }
+        pr++;
+    }
+    return d;
+}
+
+function rank(m) {
+    const r = rref(m);
+    return r.filter(row => row.some(v => Math.abs(v) > 1e-9)).length;
+}
+
+function matPow(m, n) {
+    if (m.length !== m[0].length) throw new Error('Power requires a square matrix');
+    if (n < 0) throw new Error('Exponent must be non-negative');
+    const size = m.length;
+    let result = Array.from({length: size}, (_, r) =>
+        Array.from({length: size}, (_, c) => r === c ? 1 : 0));
+    let base = m.map(r => [...r]);
+    while (n > 0) {
+        if (n % 2 === 1) result = matMul(result, base);
+        base = matMul(base, base);
+        n = Math.floor(n / 2);
+    }
+    return result;
+}
+
+function calc(op) {
+    const out = document.getElementById('result');
+    try {
+        const A = parseMatrix(document.getElementById('matA').value);
+        let B;
+        if (['add', 'sub', 'mul'].includes(op)) {
+            B = parseMatrix(document.getElementById('matB').value);
+        }
+
+        let result, label;
+        switch (op) {
+            case 'add':
+                result = matAdd(A, B); label = 'A + B'; break;
+            case 'sub':
+                result = matSub(A, B); label = 'A − B'; break;
+            case 'mul':
+                result = matMul(A, B); label = 'A × B'; break;
+            case 'scalar': {
+                const s = parseFloat(document.getElementById('scalar').value);
+                if (isNaN(s)) throw new Error('Invalid scalar value');
+                result = A.map(row => row.map(v => v * s));
+                label = `${s} × A`;
+                break;
+            }
+            case 'transpose':
+                result = transpose(A); label = 'Aᵀ'; break;
+            case 'det': {
+                const d = det(A);
+                out.className = '';
+                out.textContent = `det(A) = ${Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d.toPrecision(6)}`;
+                return;
+            }
+            case 'inverse':
+                result = inverse(A); label = 'A⁻¹'; break;
+            case 'trace': {
+                const t = trace(A);
+                out.className = '';
+                out.textContent = `trace(A) = ${Math.abs(t - Math.round(t)) < 1e-9 ? Math.round(t) : t.toPrecision(6)}`;
+                return;
+            }
+            case 'rank':
+                out.className = '';
+                out.textContent = `rank(A) = ${rank(A)}`;
+                return;
+            case 'rref':
+                result = rref(A); label = 'RREF(A)'; break;
+            case 'power': {
+                const n = parseInt(document.getElementById('power').value);
+                if (isNaN(n) || n < 0) throw new Error('Exponent must be a non-negative integer');
+                result = matPow(A, n);
+                label = `A^${n}`;
+                break;
+            }
+        }
+        out.className = '';
+        out.textContent = `${label} =\n${formatMatrix(result)}`;
+    } catch (e) {
+        out.className = 'error';
+        out.textContent = `Error: ${e.message}`;
+    }
+}
+</script>
+</body>
+</html>
