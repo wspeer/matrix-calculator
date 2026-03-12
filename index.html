@@ -162,6 +162,7 @@
                 </div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <button onclick="calc('power_mul')">A^n &times; B</button>
+                    <input type="number" id="powerMul" class="scalar-input" min="0" step="1">
                 </div>
             </div>
         </div>
@@ -871,7 +872,7 @@ function calc(op) {
                 break;
             }
             case 'power_mul': {
-                const n = parseInt(document.getElementById('power').value);
+                const n = parseInt(document.getElementById('powerMul').value);
                 if (isNaN(n) || n < 0) throw new Error('Exponent must be a non-negative integer');
                 result = matMul(matPow(A, n), B);
                 label = `A^${n} × B`;
