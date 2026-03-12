@@ -182,6 +182,14 @@
                     <span id="sumResult" style="color: #4ade80; font-family: 'Fira Code', monospace;"></span>
                 </div>
             </div>
+            <div id="scaleControls" style="margin-top: 0.5rem; display: none;">
+                <div class="inline-group">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Scale output by</span>
+                    <input type="number" id="scaleFactor" class="scalar-input" step="any">
+                    <button onclick="calcScale()">Apply</button>
+                </div>
+                <div id="scaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+            </div>
         </div>
         <div class="section">
             <label>Arithmetic</label>
@@ -248,12 +256,28 @@ function calcSum() {
 
 function showSumControls() {
     document.getElementById('sumControls').style.display = '';
+    document.getElementById('scaleControls').style.display = '';
     updateSumIndex();
+    document.getElementById('scaleResult').style.display = 'none';
+    document.getElementById('scaleResult').textContent = '';
 }
 
 function hideSumControls() {
     document.getElementById('sumControls').style.display = 'none';
     document.getElementById('sumResult').textContent = '';
+    document.getElementById('scaleControls').style.display = 'none';
+    document.getElementById('scaleResult').style.display = 'none';
+    document.getElementById('scaleResult').textContent = '';
+}
+
+function calcScale() {
+    if (!lastResultMatrix) return;
+    const factor = parseFloat(document.getElementById('scaleFactor').value);
+    if (isNaN(factor)) return;
+    const scaled = lastResultMatrix.map(row => row.map(v => v * factor));
+    const out = document.getElementById('scaleResult');
+    out.style.display = '';
+    out.textContent = `${factor} × Result =\n${formatMatrix(scaled)}`;
 }
 
 // --- Arithmetic expression evaluator (recursive descent, no eval) ---
