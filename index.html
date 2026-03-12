@@ -153,12 +153,16 @@
                 <button onclick="calc('rref')">RREF(A)</button>
                 <button onclick="calc('eigen')">Eigenvalues</button>
             </div>
-            <div class="inline-group" style="margin-top: 0.75rem;">
-                <button onclick="calc('scalar')">Scalar &times; A</button>
-                <input type="number" id="scalar" class="scalar-input" step="any">
-                <button onclick="calc('power')">A ^ n</button>
-                <button onclick="calc('power_mul')">A^n &times; B</button>
-                <input type="number" id="power" class="scalar-input" min="0" step="1">
+            <div class="inline-group" style="margin-top: 0.75rem; justify-content: space-between;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="calc('scalar')">Scalar &times; A</button>
+                    <input type="number" id="scalar" class="scalar-input" step="any">
+                    <button onclick="calc('power')">A ^ n</button>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="calc('power_mul')">A^n &times; B</button>
+                    <input type="number" id="power" class="scalar-input" min="0" step="1">
+                </div>
             </div>
         </div>
 
