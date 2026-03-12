@@ -185,7 +185,7 @@
             <div id="scaleControls" style="margin-top: 0.5rem; display: none;">
                 <div class="inline-group">
                     <span style="color: #94a3b8; font-size: 0.875rem;">Scale output by</span>
-                    <input type="number" id="scaleFactor" class="scalar-input" step="any">
+                    <input type="text" id="scaleFactor" class="scalar-input" style="width: 100px;" placeholder="e.g. 1/3">
                     <button onclick="calcScale()">Apply</button>
                 </div>
                 <div id="scaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
@@ -270,14 +270,26 @@ function hideSumControls() {
     document.getElementById('scaleResult').textContent = '';
 }
 
+function parseScaleFactor(str) {
+    str = str.trim();
+    const parts = str.split('/');
+    if (parts.length === 2) {
+        const num = parseFloat(parts[0]), den = parseFloat(parts[1]);
+        if (isNaN(num) || isNaN(den) || den === 0) return NaN;
+        return num / den;
+    }
+    return parseFloat(str);
+}
+
 function calcScale() {
     if (!lastResultMatrix) return;
-    const factor = parseFloat(document.getElementById('scaleFactor').value);
+    const raw = document.getElementById('scaleFactor').value;
+    const factor = parseScaleFactor(raw);
     if (isNaN(factor)) return;
     const scaled = lastResultMatrix.map(row => row.map(v => v * factor));
     const out = document.getElementById('scaleResult');
     out.style.display = '';
-    out.textContent = `${factor} × Result =\n${formatMatrix(scaled)}`;
+    out.textContent = `${raw.trim()} × Result =\n${formatMatrix(scaled)}`;
 }
 
 // --- Arithmetic expression evaluator (recursive descent, no eval) ---
