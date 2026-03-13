@@ -197,6 +197,15 @@
                 <div id="scaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
                 <button id="copyScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('scaleResult', 'copyScaleBtn')">Copy to clipboard</button>
             </div>
+            <div id="eigenScaleControls" style="margin-top: 0.5rem; display: none;">
+                <div class="inline-group">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Scale eigenvectors by</span>
+                    <input type="text" id="eigenScaleFactor" class="scalar-input" style="width: 100px;">
+                    <button onclick="calcEigenScale()">Apply</button>
+                </div>
+                <div id="eigenScaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+                <button id="copyEigenScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('eigenScaleResult', 'copyEigenScaleBtn')">Copy to clipboard</button>
+            </div>
         </div>
         <div class="section">
             <label>Arithmetic</label>
@@ -216,6 +225,7 @@
 
 <script>
 let lastResultMatrix = null;
+let lastEigenvectors = null;
 
 function copyResult() {
     if (!lastResultMatrix) return;
@@ -272,6 +282,7 @@ function showSumControls() {
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
     document.getElementById('copyInvertBtn').style.display = 'none';
+    hideEigenScaleControls();
 }
 
 function hideSumControls() {
@@ -285,6 +296,59 @@ function hideSumControls() {
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
     document.getElementById('copyInvertBtn').style.display = 'none';
+    hideEigenScaleControls();
+}
+
+function showEigenScaleControls() {
+    document.getElementById('eigenScaleControls').style.display = '';
+    document.getElementById('eigenScaleResult').style.display = 'none';
+    document.getElementById('eigenScaleResult').textContent = '';
+    document.getElementById('copyEigenScaleBtn').style.display = 'none';
+}
+
+function hideEigenScaleControls() {
+    document.getElementById('eigenScaleControls').style.display = 'none';
+    document.getElementById('eigenScaleResult').style.display = 'none';
+    document.getElementById('eigenScaleResult').textContent = '';
+    document.getElementById('copyEigenScaleBtn').style.display = 'none';
+    lastEigenvectors = null;
+}
+
+function calcEigenScale() {
+    if (!lastEigenvectors) return;
+    const raw = document.getElementById('eigenScaleFactor').value;
+    const factor = parseScaleFactor(raw);
+    if (isNaN(factor)) return;
+    const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const scaled = lastEigenvectors.map(vec =>
+        vec.map(v => {
+            if (isComplex(v)) return {re: v.re * factor, im: v.im * factor};
+            return v * factor;
+        })
+    );
+    const vecStrs = scaled.map(vec => vec.map(fmtVecEntry));
+    const n = scaled[0].length;
+    const colWidths = vecStrs.map(strs => Math.max(...strs.map(s => s.length)));
+    let text = `Eigenvectors × ${raw.trim()}:\n`;
+    text += '  ' + vecStrs.map((_, i) => {
+        const lbl = `v${i + 1}`;
+        const w = colWidths[i] + 4;
+        const pad = Math.floor((w - lbl.length) / 2);
+        return ' '.repeat(pad) + lbl + ' '.repeat(w - pad - lbl.length);
+    }).join('  ') + '\n';
+    for (let r = 0; r < n; r++) {
+        const top = r === 0, bot = r === n - 1;
+        text += '  ' + vecStrs.map((strs, vi) => {
+            const s = strs[r].padStart(colWidths[vi]);
+            const l = top ? '⎡' : bot ? '⎣' : '⎢';
+            const rr = top ? '⎤' : bot ? '⎦' : '⎥';
+            return `${l} ${s} ${rr}`;
+        }).join('  ') + '\n';
+    }
+    const out = document.getElementById('eigenScaleResult');
+    out.style.display = '';
+    out.textContent = text;
+    document.getElementById('copyEigenScaleBtn').style.display = '';
 }
 
 function parseScaleFactor(str) {
@@ -1002,8 +1066,10 @@ function calc(op) {
                 out.className = '';
                 out.textContent = text;
                 lastResultMatrix = null;
+                lastEigenvectors = eigenvectors;
                 document.getElementById('copyBtn').style.display = 'none';
                 hideSumControls();
+                showEigenScaleControls();
                 return;
             }
         }
