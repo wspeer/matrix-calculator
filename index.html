@@ -903,7 +903,8 @@ function calc(op) {
             case 'power_mul': {
                 const n = parseInt(document.getElementById('powerMul').value);
                 if (isNaN(n) || n < 0) throw new Error('Exponent must be a non-negative integer');
-                result = matMul(matPow(A, n), B);
+                result = B;
+                for (let i = 0; i < n; i++) result = matMul(A, result);
                 label = `A^${n} × B`;
                 break;
             }
