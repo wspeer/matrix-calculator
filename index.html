@@ -207,7 +207,7 @@
                     <button onclick="scaleEigenBySum()">Scale by sum</button>
                 </div>
                 <div id="eigenScaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
-                <button id="copyEigenScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('eigenScaleResult', 'copyEigenScaleBtn')">Copy to clipboard</button>
+                <button id="copyEigenScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copyScaledEigenvector()">Copy to clipboard</button>
             </div>
         </div>
         <div class="section">
@@ -229,6 +229,7 @@
 <script>
 let lastResultMatrix = null;
 let lastEigenvectors = null;
+let lastScaledEigenvector = null;
 
 function copyResult() {
     if (!lastResultMatrix) return;
@@ -322,6 +323,22 @@ function hideEigenScaleControls() {
     document.getElementById('eigenScaleResult').style.display = 'none';
     document.getElementById('eigenScaleResult').textContent = '';
     document.getElementById('copyEigenScaleBtn').style.display = 'none';
+    lastScaledEigenvector = null;
+}
+
+function copyScaledEigenvector() {
+    if (!lastScaledEigenvector) return;
+    const fmtEntry = v => {
+        if (isComplex(v)) return fmtComplex(v);
+        if (Math.abs(v) < 1e-10) v = 0;
+        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
+    };
+    const text = lastScaledEigenvector.map(fmtEntry).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyEigenScaleBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 1500);
+    });
 }
 
 function formatSingleEigenvector(vec, label) {
@@ -364,6 +381,7 @@ function calcEigenScale() {
         if (isComplex(v)) return {re: v.re * factor, im: v.im * factor};
         return v * factor;
     });
+    lastScaledEigenvector = scaled;
     const label = `v${idx + 1} × ${raw.trim()}`;
     const out = document.getElementById('eigenScaleResult');
     out.style.display = '';
@@ -390,6 +408,7 @@ function scaleEigenBySum() {
         return isComplex(v) ? {re: v.re / sum, im: v.im / sum} : v / sum;
     });
     const sumStr = fmtEntry(sum);
+    lastScaledEigenvector = scaled;
     const label = `v${idx + 1} / (${sumStr})`;
     const out = document.getElementById('eigenScaleResult');
     out.style.display = '';
