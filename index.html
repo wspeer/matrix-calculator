@@ -968,6 +968,37 @@ function calc(op) {
                         return `${l} ${s} ${rr}`;
                     }).join('  ') + '\n';
                 }
+                // Normalized eigenvectors
+                text += '\nNormalized eigenvectors:\n';
+                const normVecStrs = eigenvectors.map(vec => {
+                    const norm = Math.sqrt(vec.reduce((s, v) => {
+                        if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
+                        return s + v * v;
+                    }, 0));
+                    if (norm < 1e-15) return vec.map(fmtVecEntry);
+                    return vec.map(v => {
+                        if (isComplex(v)) return fmtVecEntry({re: v.re / norm, im: v.im / norm});
+                        return fmtVecEntry(v / norm);
+                    });
+                });
+                const normColWidths = normVecStrs.map(strs =>
+                    Math.max(...strs.map(s => s.length))
+                );
+                text += '  ' + normVecStrs.map((_, i) => {
+                    const lbl = `v${i + 1}`;
+                    const w = normColWidths[i] + 4;
+                    const pad = Math.floor((w - lbl.length) / 2);
+                    return ' '.repeat(pad) + lbl + ' '.repeat(w - pad - lbl.length);
+                }).join('  ') + '\n';
+                for (let r = 0; r < n; r++) {
+                    const top = r === 0, bot = r === n - 1;
+                    text += '  ' + normVecStrs.map((strs, vi) => {
+                        const s = strs[r].padStart(normColWidths[vi]);
+                        const l = top ? '⎡' : bot ? '⎣' : '⎢';
+                        const rr = top ? '⎤' : bot ? '⎦' : '⎥';
+                        return `${l} ${s} ${rr}`;
+                    }).join('  ') + '\n';
+                }
                 out.className = '';
                 out.textContent = text;
                 lastResultMatrix = null;
