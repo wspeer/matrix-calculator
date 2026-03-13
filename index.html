@@ -199,9 +199,12 @@
             </div>
             <div id="eigenScaleControls" style="margin-top: 0.5rem; display: none;">
                 <div class="inline-group">
-                    <span style="color: #94a3b8; font-size: 0.875rem;">Scale eigenvectors by</span>
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Scale</span>
+                    <select id="eigenVecSelect" class="scalar-input" style="width: auto; text-align: left;"></select>
+                    <span style="color: #94a3b8; font-size: 0.875rem;">by</span>
                     <input type="text" id="eigenScaleFactor" class="scalar-input" style="width: 100px;">
                     <button onclick="calcEigenScale()">Apply</button>
+                    <button onclick="scaleEigenBySum()">Scale by sum</button>
                 </div>
                 <div id="eigenScaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
                 <button id="copyEigenScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('eigenScaleResult', 'copyEigenScaleBtn')">Copy to clipboard</button>
@@ -304,6 +307,14 @@ function showEigenScaleControls() {
     document.getElementById('eigenScaleResult').style.display = 'none';
     document.getElementById('eigenScaleResult').textContent = '';
     document.getElementById('copyEigenScaleBtn').style.display = 'none';
+    const sel = document.getElementById('eigenVecSelect');
+    sel.innerHTML = '';
+    lastEigenvectors.forEach((_, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `v${i + 1}`;
+        sel.appendChild(opt);
+    });
 }
 
 function hideEigenScaleControls() {
@@ -311,43 +322,76 @@ function hideEigenScaleControls() {
     document.getElementById('eigenScaleResult').style.display = 'none';
     document.getElementById('eigenScaleResult').textContent = '';
     document.getElementById('copyEigenScaleBtn').style.display = 'none';
-    lastEigenvectors = null;
+}
+
+function formatSingleEigenvector(vec, label) {
+    const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const strs = vec.map(fmtVecEntry);
+    const w = Math.max(...strs.map(s => s.length));
+    const n = vec.length;
+    let text = '';
+    const lblW = w + 4;
+    const pad = Math.floor((lblW - label.length) / 2);
+    text += '  ' + ' '.repeat(pad) + label + ' '.repeat(lblW - pad - label.length) + '\n';
+    for (let r = 0; r < n; r++) {
+        const top = r === 0, bot = r === n - 1;
+        const s = strs[r].padStart(w);
+        const l = top ? '⎡' : bot ? '⎣' : '⎢';
+        const rr = top ? '⎤' : bot ? '⎦' : '⎥';
+        text += `  ${l} ${s} ${rr}\n`;
+    }
+    return text;
+}
+
+function eigenVecSum(vec) {
+    return vec.reduce((s, v) => {
+        if (isComplex(v)) return {re: (isComplex(s) ? s.re : s) + v.re, im: (isComplex(s) ? s.im : 0) + v.im};
+        if (isComplex(s)) return {re: s.re + v, im: s.im};
+        return s + v;
+    }, 0);
 }
 
 function calcEigenScale() {
     if (!lastEigenvectors) return;
+    const idx = parseInt(document.getElementById('eigenVecSelect').value);
     const raw = document.getElementById('eigenScaleFactor').value;
     const factor = parseScaleFactor(raw);
     if (isNaN(factor)) return;
-    const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
-    const scaled = lastEigenvectors.map(vec =>
-        vec.map(v => {
-            if (isComplex(v)) return {re: v.re * factor, im: v.im * factor};
-            return v * factor;
-        })
-    );
-    const vecStrs = scaled.map(vec => vec.map(fmtVecEntry));
-    const n = scaled[0].length;
-    const colWidths = vecStrs.map(strs => Math.max(...strs.map(s => s.length)));
-    let text = `Eigenvectors × ${raw.trim()}:\n`;
-    text += '  ' + vecStrs.map((_, i) => {
-        const lbl = `v${i + 1}`;
-        const w = colWidths[i] + 4;
-        const pad = Math.floor((w - lbl.length) / 2);
-        return ' '.repeat(pad) + lbl + ' '.repeat(w - pad - lbl.length);
-    }).join('  ') + '\n';
-    for (let r = 0; r < n; r++) {
-        const top = r === 0, bot = r === n - 1;
-        text += '  ' + vecStrs.map((strs, vi) => {
-            const s = strs[r].padStart(colWidths[vi]);
-            const l = top ? '⎡' : bot ? '⎣' : '⎢';
-            const rr = top ? '⎤' : bot ? '⎦' : '⎥';
-            return `${l} ${s} ${rr}`;
-        }).join('  ') + '\n';
-    }
+    const vec = lastEigenvectors[idx];
+    const scaled = vec.map(v => {
+        if (isComplex(v)) return {re: v.re * factor, im: v.im * factor};
+        return v * factor;
+    });
+    const label = `v${idx + 1} × ${raw.trim()}`;
     const out = document.getElementById('eigenScaleResult');
     out.style.display = '';
-    out.textContent = text;
+    out.textContent = formatSingleEigenvector(scaled, label);
+    document.getElementById('copyEigenScaleBtn').style.display = '';
+}
+
+function scaleEigenBySum() {
+    if (!lastEigenvectors) return;
+    const idx = parseInt(document.getElementById('eigenVecSelect').value);
+    const vec = lastEigenvectors[idx];
+    const sum = eigenVecSum(vec);
+    const sumIsComplex = isComplex(sum);
+    if (!sumIsComplex && Math.abs(sum) < 1e-15) return;
+    if (sumIsComplex && Math.abs(sum.re) < 1e-15 && Math.abs(sum.im) < 1e-15) return;
+    const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const scaled = vec.map(v => {
+        const re = isComplex(v) ? v.re : v;
+        const im = isComplex(v) ? v.im : 0;
+        if (sumIsComplex) {
+            const d = sum.re * sum.re + sum.im * sum.im;
+            return {re: (re * sum.re + im * sum.im) / d, im: (im * sum.re - re * sum.im) / d};
+        }
+        return isComplex(v) ? {re: v.re / sum, im: v.im / sum} : v / sum;
+    });
+    const sumStr = fmtEntry(sum);
+    const label = `v${idx + 1} / (${sumStr})`;
+    const out = document.getElementById('eigenScaleResult');
+    out.style.display = '';
+    out.textContent = `Sum of v${idx + 1} entries = ${sumStr}\n\n` + formatSingleEigenvector(scaled, label);
     document.getElementById('copyEigenScaleBtn').style.display = '';
 }
 
@@ -1066,9 +1110,9 @@ function calc(op) {
                 out.className = '';
                 out.textContent = text;
                 lastResultMatrix = null;
-                lastEigenvectors = eigenvectors;
                 document.getElementById('copyBtn').style.display = 'none';
                 hideSumControls();
+                lastEigenvectors = eigenvectors;
                 showEigenScaleControls();
                 return;
             }
