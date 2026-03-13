@@ -152,6 +152,8 @@
                 <button onclick="calc('rank')">Rank(A)</button>
                 <button onclick="calc('rref')">RREF(A)</button>
                 <button onclick="calc('eigen')">Eigenvalues</button>
+                <button onclick="calc('ata')">A&#7488;A</button>
+                <button onclick="calc('aat')">AA&#7488;</button>
             </div>
             <div class="inline-group" style="margin-top: 0.75rem; justify-content: space-between;">
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -835,6 +837,10 @@ function calc(op) {
             }
             case 'transpose':
                 result = transpose(A); label = 'Aᵀ'; break;
+            case 'ata':
+                result = matMul(transpose(A), A); label = 'AᵀA'; break;
+            case 'aat':
+                result = matMul(A, transpose(A)); label = 'AAᵀ'; break;
             case 'det': {
                 const d = det(A);
                 out.className = '';
