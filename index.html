@@ -312,7 +312,12 @@ function calcScale() {
 
 function copySecondary(sourceId, btnId) {
     const text = document.getElementById(sourceId).textContent;
-    const matrixPart = text.substring(text.indexOf('\n') + 1);
+    const matrixPart = text.substring(text.indexOf('\n') + 1)
+        .replace(/[[\]│┌┐└┘]/g, '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
     navigator.clipboard.writeText(matrixPart).then(() => {
         const btn = document.getElementById(btnId);
         btn.textContent = 'Copied!';
