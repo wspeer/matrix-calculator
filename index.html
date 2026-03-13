@@ -175,6 +175,7 @@
             <button id="copyBtn" style="margin-top: 0.5rem; display: none;" onclick="copyResult()">Copy to clipboard</button>
             <button id="invertResultBtn" style="margin-top: 0.5rem; display: none;" onclick="invertResult()">Invert Result</button>
             <div id="invertResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+            <button id="copyInvertBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('invertResult', 'copyInvertBtn')">Copy to clipboard</button>
             <div id="sumControls" style="margin-top: 0.75rem; display: none;">
                 <div class="inline-group">
                     <span style="color: #94a3b8; font-size: 0.875rem;">Sum of</span>
@@ -270,6 +271,7 @@ function showSumControls() {
     document.getElementById('copyScaleBtn').style.display = 'none';
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
+    document.getElementById('copyInvertBtn').style.display = 'none';
 }
 
 function hideSumControls() {
@@ -282,6 +284,7 @@ function hideSumControls() {
     document.getElementById('invertResultBtn').style.display = 'none';
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
+    document.getElementById('copyInvertBtn').style.display = 'none';
 }
 
 function parseScaleFactor(str) {
@@ -325,10 +328,12 @@ function invertResult() {
         out.style.display = '';
         out.style.color = '#38bdf8';
         out.textContent = `Result⁻¹ =\n${formatMatrix(inv)}`;
+        document.getElementById('copyInvertBtn').style.display = '';
     } catch (e) {
         out.style.display = '';
         out.style.color = '#f87171';
         out.textContent = `Error: ${e.message}`;
+        document.getElementById('copyInvertBtn').style.display = 'none';
     }
 }
 
