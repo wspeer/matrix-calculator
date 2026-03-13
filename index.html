@@ -330,15 +330,17 @@ function formatSingleEigenvector(vec, label) {
     const w = Math.max(...strs.map(s => s.length));
     const n = vec.length;
     let text = '';
-    const lblW = w + 4;
-    const pad = Math.floor((lblW - label.length) / 2);
-    text += '  ' + ' '.repeat(pad) + label + ' '.repeat(lblW - pad - label.length) + '\n';
+    const colW = w + 4;
+    const totalW = Math.max(colW, label.length);
+    const pad = Math.max(0, Math.floor((totalW - label.length) / 2));
+    text += '  ' + ' '.repeat(pad) + label + '\n';
+    const vecPad = Math.max(0, Math.floor((totalW - colW) / 2));
     for (let r = 0; r < n; r++) {
         const top = r === 0, bot = r === n - 1;
         const s = strs[r].padStart(w);
         const l = top ? '⎡' : bot ? '⎣' : '⎢';
         const rr = top ? '⎤' : bot ? '⎦' : '⎥';
-        text += `  ${l} ${s} ${rr}\n`;
+        text += '  ' + ' '.repeat(vecPad) + `${l} ${s} ${rr}\n`;
     }
     return text;
 }
