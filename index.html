@@ -194,6 +194,7 @@
                     <button onclick="calcScale()">Apply</button>
                 </div>
                 <div id="scaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+                <button id="copyScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('scaleResult', 'copyScaleBtn')">Copy to clipboard</button>
             </div>
         </div>
         <div class="section">
@@ -266,6 +267,7 @@ function showSumControls() {
     updateSumIndex();
     document.getElementById('scaleResult').style.display = 'none';
     document.getElementById('scaleResult').textContent = '';
+    document.getElementById('copyScaleBtn').style.display = 'none';
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
 }
@@ -276,6 +278,7 @@ function hideSumControls() {
     document.getElementById('scaleControls').style.display = 'none';
     document.getElementById('scaleResult').style.display = 'none';
     document.getElementById('scaleResult').textContent = '';
+    document.getElementById('copyScaleBtn').style.display = 'none';
     document.getElementById('invertResultBtn').style.display = 'none';
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
@@ -301,6 +304,17 @@ function calcScale() {
     const out = document.getElementById('scaleResult');
     out.style.display = '';
     out.textContent = `${raw.trim()} × Result =\n${formatMatrix(scaled)}`;
+    document.getElementById('copyScaleBtn').style.display = '';
+}
+
+function copySecondary(sourceId, btnId) {
+    const text = document.getElementById(sourceId).textContent;
+    const matrixPart = text.substring(text.indexOf('\n') + 1);
+    navigator.clipboard.writeText(matrixPart).then(() => {
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 1500);
+    });
 }
 
 function invertResult() {
