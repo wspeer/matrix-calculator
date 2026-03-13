@@ -173,6 +173,8 @@
             <label>Result</label>
             <div id="result">Results appear here...</div>
             <button id="copyBtn" style="margin-top: 0.5rem; display: none;" onclick="copyResult()">Copy to clipboard</button>
+            <button id="invertResultBtn" style="margin-top: 0.5rem; display: none;" onclick="invertResult()">Invert Result</button>
+            <div id="invertResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
             <div id="sumControls" style="margin-top: 0.75rem; display: none;">
                 <div class="inline-group">
                     <span style="color: #94a3b8; font-size: 0.875rem;">Sum of</span>
@@ -260,9 +262,12 @@ function calcSum() {
 function showSumControls() {
     document.getElementById('sumControls').style.display = '';
     document.getElementById('scaleControls').style.display = '';
+    document.getElementById('invertResultBtn').style.display = '';
     updateSumIndex();
     document.getElementById('scaleResult').style.display = 'none';
     document.getElementById('scaleResult').textContent = '';
+    document.getElementById('invertResult').style.display = 'none';
+    document.getElementById('invertResult').textContent = '';
 }
 
 function hideSumControls() {
@@ -271,6 +276,9 @@ function hideSumControls() {
     document.getElementById('scaleControls').style.display = 'none';
     document.getElementById('scaleResult').style.display = 'none';
     document.getElementById('scaleResult').textContent = '';
+    document.getElementById('invertResultBtn').style.display = 'none';
+    document.getElementById('invertResult').style.display = 'none';
+    document.getElementById('invertResult').textContent = '';
 }
 
 function parseScaleFactor(str) {
@@ -293,6 +301,21 @@ function calcScale() {
     const out = document.getElementById('scaleResult');
     out.style.display = '';
     out.textContent = `${raw.trim()} × Result =\n${formatMatrix(scaled)}`;
+}
+
+function invertResult() {
+    if (!lastResultMatrix) return;
+    const out = document.getElementById('invertResult');
+    try {
+        const inv = inverse(lastResultMatrix);
+        out.style.display = '';
+        out.style.color = '#38bdf8';
+        out.textContent = `Result⁻¹ =\n${formatMatrix(inv)}`;
+    } catch (e) {
+        out.style.display = '';
+        out.style.color = '#f87171';
+        out.textContent = `Error: ${e.message}`;
+    }
 }
 
 // --- Arithmetic expression evaluator (recursive descent, no eval) ---
