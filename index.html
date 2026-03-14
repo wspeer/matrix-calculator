@@ -972,6 +972,25 @@ function tryIntegerVec(vec) {
 
 function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
 
+// Try to express a real number as a fraction p/q (|q| <= maxDen).
+// Returns "p/q" string or null if not a clean fraction.
+function toFraction(x, maxDen = 1000) {
+    if (Math.abs(x - Math.round(x)) < 1e-9) return null; // already integer
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    for (let d = 2; d <= maxDen; d++) {
+        const n = x * d;
+        if (Math.abs(n - Math.round(n)) < 1e-7) {
+            const num = Math.round(n) * sign;
+            const g = gcd(Math.abs(num), d);
+            const rn = num / g, rd = d / g;
+            if (rd === 1) return null; // integer
+            return `${rn}/${rd}`;
+        }
+    }
+    return null;
+}
+
 function matPow(m, n) {
     if (m.length !== m[0].length) throw new Error('Power requires a square matrix');
     if (n < 0) throw new Error('Exponent must be non-negative');
@@ -1065,9 +1084,31 @@ function calc(op) {
                 const { eigenvalues, eigenvectors } = eigen(A);
                 const fmtVal = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
                 const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+                // Build fractional annotation for an eigenvalue
+                const fracAnnotation = v => {
+                    if (isComplex(v) && Math.abs(v.im) > 1e-10) {
+                        const rFrac = Math.abs(v.re) < 1e-10 ? null : toFraction(v.re);
+                        const imAbs = Math.abs(v.im);
+                        const iFrac = toFraction(imAbs);
+                        if (!rFrac && !iFrac) return '';
+                        const rPart = rFrac || fmtComplex({re: v.re, im: 0});
+                        const iPart = iFrac || fmtComplex({re: imAbs, im: 0});
+                        const sign = v.im >= 0 ? ' + ' : ' − ';
+                        let expr;
+                        if (Math.abs(v.re) < 1e-10) {
+                            expr = (v.im < 0 ? '−' : '') + iPart + 'i';
+                        } else {
+                            expr = rPart + sign + iPart + 'i';
+                        }
+                        return `  (= ${expr})`;
+                    }
+                    const real = isComplex(v) ? v.re : v;
+                    const frac = toFraction(real);
+                    return frac ? `  (= ${frac})` : '';
+                };
                 let text = 'Eigenvalues:\n';
                 eigenvalues.forEach((val, i) => {
-                    text += `  λ${i + 1} = ${fmtVal(val)}\n`;
+                    text += `  λ${i + 1} = ${fmtVal(val)}${fracAnnotation(val)}\n`;
                 });
                 text += '\nEigenvectors:\n';
                 // Format each vector's entries as strings
