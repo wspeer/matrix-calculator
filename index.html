@@ -1139,7 +1139,7 @@ function calc(op) {
                     }).join('  ') + '\n';
                 }
                 // Normalized eigenvectors
-                text += '\nNormalized eigenvectors:\n';
+                text += '\nNormalized (magnitude 1) eigenvectors:\n';
                 const normVecStrs = eigenvectors.map(vec => {
                     const norm = Math.sqrt(vec.reduce((s, v) => {
                         if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
