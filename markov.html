@@ -67,10 +67,10 @@
             display: flex;
             flex-wrap: nowrap;
         }
-        .input-row > div { flex: 1; min-width: 0; overflow: hidden; }
+        .input-row > div:not(.split-handle) { flex: 1; min-width: 0; overflow: hidden; }
         .split-handle {
+            flex: 0 0 12px;
             width: 12px;
-            min-width: 12px;
             cursor: col-resize;
             display: flex;
             align-items: center;
@@ -328,14 +328,12 @@ function computePowerTimesB() {
     document.addEventListener('mousemove', function(e) {
         if (!dragging) return;
         const rect = row.getBoundingClientRect();
-        const handleWidth = handle.getBoundingClientRect().width;
-        const available = rect.width - handleWidth;
-        const offset = e.clientX - rect.left - handleWidth / 2;
-        const ratio = Math.max(0.15, Math.min(0.85, offset / available));
+        const offset = e.clientX - rect.left;
+        const pct = Math.max(15, Math.min(85, (offset / rect.width) * 100));
         panes[0].style.flex = 'none';
         panes[1].style.flex = 'none';
-        panes[0].style.width = (ratio * available) + 'px';
-        panes[1].style.width = ((1 - ratio) * available) + 'px';
+        panes[0].style.width = 'calc(' + pct + '% - 8px)';
+        panes[1].style.width = 'calc(' + (100 - pct) + '% - 8px)';
     });
 
     document.addEventListener('mouseup', function() {
