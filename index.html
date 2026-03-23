@@ -144,14 +144,45 @@
             color: #4ade80;
         }
         .error { color: #f87171; }
+        .tab-bar {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1.5rem;
+            justify-content: center;
+        }
+        .tab-btn {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            border-radius: 8px 8px 0 0;
+            padding: 0.6rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tab-btn:hover {
+            color: #e2e8f0;
+            background: #1e293b;
+        }
+        .tab-btn.active {
+            background: #1e293b;
+            color: #38bdf8;
+            border-bottom-color: #1e293b;
+            font-weight: 600;
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="text-align: center; margin-bottom: 1rem;">
-            <a href="markov.html" style="color: #38bdf8; text-decoration: none; font-size: 0.95rem;">Matrix Powers (Markov Chains &amp; Dynamical Systems) &rarr;</a>
-        </div>
         <h1>Matrix Calculator</h1>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('calc')">Calculator</button>
+            <button class="tab-btn" onclick="switchTab('powers')">Powers</button>
+        </div>
+
+        <div id="panel-calc" class="tab-panel active">
         <p class="subtitle">Enter matrices row by row, one row per line, values separated by spaces</p>
 
         <div class="section">
@@ -253,6 +284,40 @@
                 </div>
             </div>
         </div>
+        </div><!-- end panel-calc -->
+
+        <div id="panel-powers" class="tab-panel">
+        <p class="subtitle">Compute successive powers of a matrix — useful for Markov chains &amp; discrete dynamical systems</p>
+
+        <div class="section">
+            <div class="input-row" id="pwSplitRow">
+                <div>
+                    <label>Matrix A (square)</label>
+                    <textarea id="pwMatA"></textarea>
+                </div>
+                <div class="split-handle" id="pwSplitHandle"></div>
+                <div>
+                    <label>Vector b</label>
+                    <textarea id="pwVecB"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="inline-group">
+                <span style="color: #94a3b8; font-size: 0.875rem;">Compute up to power n =</span>
+                <input type="number" id="pwMaxPower" class="scalar-input" min="1" step="1" value="5">
+                <button onclick="computePowers()">A<sup>1</sup> … A<sup>n</sup></button>
+                <button onclick="computePowerTimesB()">A<sup>1</sup>b … A<sup>n</sup>b</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Result</label>
+            <div id="pwResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
+        </div>
+        </div><!-- end panel-powers -->
+
     </div>
 
 <script>
@@ -1222,9 +1287,97 @@ function calc(op) {
     }
 }
 
-(function() {
-    const handle = document.getElementById('splitHandle');
-    const row = document.getElementById('splitRow');
+// Tab switching
+function switchTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        if ((tab === 'calc' && b.textContent === 'Calculator') ||
+            (tab === 'powers' && b.textContent === 'Powers'))
+            b.classList.add('active');
+    });
+}
+
+// Powers page functions
+function parseVector(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length === 0) throw new Error('Vector is empty');
+    return lines.map((line, i) => {
+        const v = Number(line.trim());
+        if (isNaN(v)) throw new Error(`Invalid number in vector entry ${i + 1}`);
+        return [v];
+    });
+}
+
+function computePowers() {
+    const out = document.getElementById('pwResult');
+    try {
+        const A = parseMatrix(document.getElementById('pwMatA').value);
+        if (A.length !== A[0].length) throw new Error('Matrix A must be square');
+        const n = parseInt(document.getElementById('pwMaxPower').value);
+        if (isNaN(n) || n < 1) throw new Error('Power n must be a positive integer');
+
+        let text = '';
+        let current = A.map(r => [...r]);
+        for (let k = 1; k <= n; k++) {
+            if (k > 1) current = matMul(current, A);
+            text += `A^${k} =\n${formatMatrix(current)}\n\n`;
+        }
+        out.className = '';
+        out.textContent = text.trimEnd();
+    } catch (e) {
+        out.className = 'error';
+        out.textContent = `Error: ${e.message}`;
+    }
+}
+
+function computePowerTimesB() {
+    const out = document.getElementById('pwResult');
+    try {
+        const A = parseMatrix(document.getElementById('pwMatA').value);
+        if (A.length !== A[0].length) throw new Error('Matrix A must be square');
+        const b = parseVector(document.getElementById('pwVecB').value);
+        if (A[0].length !== b.length)
+            throw new Error(`Dimension mismatch: A is ${A.length}×${A[0].length} but b has ${b.length} entries`);
+        const n = parseInt(document.getElementById('pwMaxPower').value);
+        if (isNaN(n) || n < 1) throw new Error('Power n must be a positive integer');
+
+        let text = '';
+        let current = b;
+        for (let k = 1; k <= n; k++) {
+            current = matMul(A, current);
+            const entries = current.map(row => row[0]);
+            const entrySum = entries.reduce((a, v) => a + v, 0);
+            const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6);
+            const scaled = current.map(row => [row[0] / entrySum]);
+            const col1Lines = (`A^${k} × b =\n${formatMatrix(current)}`).split('\n');
+            const col2Lines = (`Sum of entries = ${fmtSum}`).split('\n');
+            const col3Lines = (`Scaled by sum:\n${formatMatrix(scaled)}`).split('\n');
+            const col1Width = Math.max(...col1Lines.map(l => l.length));
+            const col2Width = Math.max(...col2Lines.map(l => l.length));
+            const gap = '    ';
+            const maxLines = Math.max(col1Lines.length, col2Lines.length, col3Lines.length);
+            for (let i = 0; i < maxLines; i++) {
+                const c1 = (i < col1Lines.length ? col1Lines[i] : '').padEnd(col1Width);
+                const c2 = (i < col2Lines.length ? col2Lines[i] : '').padEnd(col2Width);
+                const c3 = i < col3Lines.length ? col3Lines[i] : '';
+                text += c1 + gap + c2 + gap + c3 + '\n';
+            }
+            text += '\n';
+        }
+        out.className = '';
+        out.textContent = text.trimEnd();
+    } catch (e) {
+        out.className = 'error';
+        out.textContent = `Error: ${e.message}`;
+    }
+}
+
+// Split handles for both panels
+function initSplitHandle(handleId, rowId) {
+    const handle = document.getElementById(handleId);
+    const row = document.getElementById(rowId);
     const panes = [row.children[0], row.children[2]];
     let dragging = false;
 
@@ -1254,7 +1407,10 @@ function calc(op) {
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
     });
-})();
+}
+
+initSplitHandle('splitHandle', 'splitRow');
+initSplitHandle('pwSplitHandle', 'pwSplitRow');
 </script>
 </body>
 </html>
