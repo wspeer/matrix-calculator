@@ -262,9 +262,21 @@ function computePowerTimesB() {
             const entrySum = entries.reduce((a, v) => a + v, 0);
             const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6);
             const scaled = current.map(row => [row[0] / entrySum]);
-            text += `A^${k} × b =\n${formatMatrix(current)}\n`;
-            text += `  Sum of entries = ${fmtSum}\n`;
-            text += `  Scaled by sum:\n${formatMatrix(scaled)}\n\n`;
+            const leftLines = (`A^${k} × b =\n${formatMatrix(current)}`).split('\n');
+            const scaledLines = (`Scaled by sum:\n${formatMatrix(scaled)}`).split('\n');
+            const leftWidth = Math.max(...leftLines.map(l => l.length));
+            const gap = '    ';
+            const totalLeft = leftLines.length;
+            const totalRight = 1 + scaledLines.length; // sum line + scaled lines
+            const maxLines = Math.max(totalLeft, totalRight);
+            for (let i = 0; i < maxLines; i++) {
+                const left = (i < totalLeft ? leftLines[i] : '').padEnd(leftWidth);
+                let right = '';
+                if (i === 0) right = `Sum of entries = ${fmtSum}`;
+                else if (i >= 1 && i - 1 < scaledLines.length) right = scaledLines[i - 1];
+                text += left + gap + right + '\n';
+            }
+            text += '\n';
         }
         out.className = '';
         out.textContent = text.trimEnd();
