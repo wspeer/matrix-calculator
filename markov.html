@@ -262,19 +262,18 @@ function computePowerTimesB() {
             const entrySum = entries.reduce((a, v) => a + v, 0);
             const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6);
             const scaled = current.map(row => [row[0] / entrySum]);
-            const leftLines = (`A^${k} × b =\n${formatMatrix(current)}`).split('\n');
-            const scaledLines = (`Scaled by sum:\n${formatMatrix(scaled)}`).split('\n');
-            const leftWidth = Math.max(...leftLines.map(l => l.length));
+            const col1Lines = (`A^${k} × b =\n${formatMatrix(current)}`).split('\n');
+            const col2Lines = (`Sum of entries = ${fmtSum}`).split('\n');
+            const col3Lines = (`Scaled by sum:\n${formatMatrix(scaled)}`).split('\n');
+            const col1Width = Math.max(...col1Lines.map(l => l.length));
+            const col2Width = Math.max(...col2Lines.map(l => l.length));
             const gap = '    ';
-            const totalLeft = leftLines.length;
-            const totalRight = 1 + scaledLines.length; // sum line + scaled lines
-            const maxLines = Math.max(totalLeft, totalRight);
+            const maxLines = Math.max(col1Lines.length, col2Lines.length, col3Lines.length);
             for (let i = 0; i < maxLines; i++) {
-                const left = (i < totalLeft ? leftLines[i] : '').padEnd(leftWidth);
-                let right = '';
-                if (i === 0) right = `Sum of entries = ${fmtSum}`;
-                else if (i >= 1 && i - 1 < scaledLines.length) right = scaledLines[i - 1];
-                text += left + gap + right + '\n';
+                const c1 = (i < col1Lines.length ? col1Lines[i] : '').padEnd(col1Width);
+                const c2 = (i < col2Lines.length ? col2Lines[i] : '').padEnd(col2Width);
+                const c3 = i < col3Lines.length ? col3Lines[i] : '';
+                text += c1 + gap + c2 + gap + c3 + '\n';
             }
             text += '\n';
         }
