@@ -258,7 +258,13 @@ function computePowerTimesB() {
         let current = b;
         for (let k = 1; k <= n; k++) {
             current = matMul(A, current);
-            text += `A^${k} × b =\n${formatMatrix(current)}\n\n`;
+            const entries = current.map(row => row[0]);
+            const entrySum = entries.reduce((a, v) => a + v, 0);
+            const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6);
+            const scaled = current.map(row => [row[0] / entrySum]);
+            text += `A^${k} × b =\n${formatMatrix(current)}\n`;
+            text += `  Sum of entries = ${fmtSum}\n`;
+            text += `  Scaled by sum:\n${formatMatrix(scaled)}\n\n`;
         }
         out.className = '';
         out.textContent = text.trimEnd();
