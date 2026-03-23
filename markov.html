@@ -52,7 +52,7 @@
             padding: 0.75rem;
             font-family: 'Fira Code', 'Consolas', monospace;
             font-size: 1rem;
-            resize: both;
+            resize: vertical;
             min-height: 160px;
         }
         textarea::-webkit-resizer {
@@ -65,10 +65,32 @@
         }
         .input-row {
             display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
-        .input-row > div { flex: 1; min-width: 250px; }
+        .input-row > div { flex: 1; min-width: 0; overflow: hidden; }
+        .split-handle {
+            width: 12px;
+            min-width: 12px;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+        .split-handle:hover, .split-handle.dragging {
+            background: #334155;
+        }
+        .split-handle::after {
+            content: '';
+            display: block;
+            width: 2px;
+            height: 40px;
+            background: #64748b;
+            border-radius: 2px;
+            box-shadow: 4px 0 0 #64748b, -4px 0 0 #64748b;
+        }
         button {
             background: #334155;
             color: #e2e8f0;
@@ -140,11 +162,12 @@
         <p class="subtitle">Compute successive powers of a matrix — useful for Markov chains &amp; discrete dynamical systems</p>
 
         <div class="section">
-            <div class="input-row">
+            <div class="input-row" id="splitRow">
                 <div>
                     <label>Matrix A (square)</label>
                     <textarea id="matA"></textarea>
                 </div>
+                <div class="split-handle" id="splitHandle"></div>
                 <div>
                     <label>Vector b (column vector, one entry per line — optional)</label>
                     <textarea id="vecB"></textarea>
@@ -287,6 +310,42 @@ function computePowerTimesB() {
         out.textContent = `Error: ${e.message}`;
     }
 }
+
+(function() {
+    const handle = document.getElementById('splitHandle');
+    const row = document.getElementById('splitRow');
+    const panes = [row.children[0], row.children[2]];
+    let dragging = false;
+
+    handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dragging = true;
+        handle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        const rect = row.getBoundingClientRect();
+        const handleWidth = handle.getBoundingClientRect().width;
+        const available = rect.width - handleWidth;
+        const offset = e.clientX - rect.left - handleWidth / 2;
+        const ratio = Math.max(0.15, Math.min(0.85, offset / available));
+        panes[0].style.flex = 'none';
+        panes[1].style.flex = 'none';
+        panes[0].style.width = (ratio * available) + 'px';
+        panes[1].style.width = ((1 - ratio) * available) + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
+})();
 
 </script>
 </body>
