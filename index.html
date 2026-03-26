@@ -121,6 +121,10 @@
             font-size: 0.9rem;
             text-align: center;
         }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            filter: invert(1);
+        }
         .scalar-input:focus, #arithInput:focus {
             outline: none;
             border-color: #38bdf8;
@@ -218,6 +222,7 @@
             <div class="inline-group" style="margin-top: 0.75rem; justify-content: space-between;">
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <button onclick="calc('scalar')">Scalar &times; A</button>
+                    <button onclick="calc('scalar_mul')">Scalar &times; A &times; B</button>
                     <input type="number" id="scalar" class="scalar-input" step="any">
                     <button onclick="calc('power')">A ^ n</button>
                     <input type="number" id="power" class="scalar-input" min="0" step="1">
@@ -1105,7 +1110,7 @@ function calc(op) {
     try {
         const A = parseMatrix(document.getElementById('matA').value);
         let B;
-        if (['add', 'sub', 'mul', 'power_mul'].includes(op)) {
+        if (['add', 'sub', 'mul', 'scalar_mul', 'power_mul'].includes(op)) {
             B = parseMatrix(document.getElementById('matB').value);
         }
 
@@ -1122,6 +1127,13 @@ function calc(op) {
                 if (isNaN(s)) throw new Error('Invalid scalar value');
                 result = A.map(row => row.map(v => v * s));
                 label = `${s} × A`;
+                break;
+            }
+            case 'scalar_mul': {
+                const s = parseFloat(document.getElementById('scalar').value);
+                if (isNaN(s)) throw new Error('Invalid scalar value');
+                result = matMul(A.map(row => row.map(v => v * s)), B);
+                label = `${s} × A × B`;
                 break;
             }
             case 'transpose':
