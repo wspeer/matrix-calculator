@@ -270,6 +270,7 @@
                     <input type="text" id="eigenScaleFactor" class="scalar-input" style="width: 100px;">
                     <button onclick="calcEigenScale()">Apply</button>
                     <button onclick="scaleEigenBySum()">Scale by sum</button>
+                    <button onclick="normalizeEigen()">Normalize</button>
                 </div>
                 <div id="eigenScaleResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
                 <button id="copyEigenScaleBtn" style="margin-top: 0.5rem; display: none;" onclick="copyScaledEigenvector()">Copy to clipboard</button>
@@ -512,6 +513,28 @@ function scaleEigenBySum() {
     const out = document.getElementById('eigenScaleResult');
     out.style.display = '';
     out.textContent = `Sum of v${idx + 1} entries = ${sumStr}\n\n` + formatSingleEigenvector(scaled, label);
+    document.getElementById('copyEigenScaleBtn').style.display = '';
+}
+
+function normalizeEigen() {
+    if (!lastEigenvectors) return;
+    const idx = parseInt(document.getElementById('eigenVecSelect').value);
+    const vec = lastEigenvectors[idx];
+    const norm = Math.sqrt(vec.reduce((s, v) => {
+        if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
+        return s + v * v;
+    }, 0));
+    if (norm < 1e-15) return;
+    const scaled = vec.map(v => {
+        if (isComplex(v)) return {re: v.re / norm, im: v.im / norm};
+        return v / norm;
+    });
+    lastScaledEigenvector = scaled;
+    const fmtNorm = Math.abs(norm - Math.round(norm)) < 1e-9 ? Math.round(norm).toString() : norm.toPrecision(6);
+    const label = `v${idx + 1} / ‖v${idx + 1}‖`;
+    const out = document.getElementById('eigenScaleResult');
+    out.style.display = '';
+    out.textContent = `‖v${idx + 1}‖ = ${fmtNorm}\n\n` + formatSingleEigenvector(scaled, label);
     document.getElementById('copyEigenScaleBtn').style.display = '';
 }
 
