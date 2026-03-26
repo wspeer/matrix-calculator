@@ -1205,11 +1205,15 @@ function calc(op) {
                     text += `  λ${i + 1} = ${fmtVal(val)}${fracAnnotation(val)}\n`;
                 });
                 text += '\nEigenvectors:\n';
-                // Format each vector's entries as strings
-                const vecStrs = eigenvectors.map(vec => {
+                // Build display-form vectors (integer-scaled when possible)
+                const displayVecs = eigenvectors.map(vec => {
                     const intVec = tryIntegerVec(vec);
-                    return intVec ? intVec.map(String) : vec.map(fmtVecEntry);
+                    return intVec ? intVec : vec;
                 });
+                // Format each vector's entries as strings
+                const vecStrs = displayVecs.map(vec =>
+                    vec.map(v => typeof v === 'number' ? fmtVecEntry(v) : (isComplex(v) ? fmtComplex(v) : String(v)))
+                );
                 // Render as side-by-side column vectors
                 const n = eigenvectors[0].length;
                 const colWidths = vecStrs.map(strs =>
@@ -1234,21 +1238,30 @@ function calc(op) {
                 }
                 // Norms
                 text += '\nNorms:\n';
-                eigenvectors.forEach((vec, i) => {
-                    const norm = Math.sqrt(vec.reduce((s, v) => {
+                displayVecs.forEach((vec, i) => {
+                    const normSq = vec.reduce((s, v) => {
                         if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
                         return s + v * v;
-                    }, 0));
-                    const fmtNorm = Math.abs(norm - Math.round(norm)) < 1e-9 ? Math.round(norm).toString() : norm.toPrecision(6);
-                    const frac = toFraction(norm);
-                    text += `  ‖v${i + 1}‖ = ${fmtNorm}${frac ? '  (= ' + frac + ')' : ''}\n`;
+                    }, 0);
+                    const norm = Math.sqrt(normSq);
+                    let normStr;
+                    if (Math.abs(norm - Math.round(norm)) < 1e-9) {
+                        normStr = Math.round(norm).toString();
+                    } else if (Math.abs(normSq - Math.round(normSq)) < 1e-9) {
+                        normStr = `√${Math.round(normSq)}`;
+                    } else {
+                        normStr = norm.toPrecision(6);
+                        const frac = toFraction(norm);
+                        if (frac) normStr += `  (= ${frac})`;
+                    }
+                    text += `  ‖v${i + 1}‖ = ${normStr}\n`;
                 });
                 out.className = '';
                 out.textContent = text;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
                 hideSumControls();
-                lastEigenvectors = eigenvectors;
+                lastEigenvectors = displayVecs;
                 showEigenScaleControls();
                 return;
             }
