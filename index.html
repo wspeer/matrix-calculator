@@ -239,6 +239,15 @@
             <div id="result">Results appear here...</div>
             <button id="copyBtn" style="margin-top: 0.5rem; display: none;" onclick="copyResult()">Copy to clipboard</button>
             <button id="invertResultBtn" style="margin-top: 0.5rem; display: none;" onclick="invertResult()">Invert Result</button>
+            <div id="roundControls" style="margin-top: 0.5rem; display: none;">
+                <div class="inline-group">
+                    <button onclick="roundResult()">Round entries to</button>
+                    <input type="number" id="roundPlaces" class="scalar-input" min="0" step="1" value="2" style="width: 60px;">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">decimal places</span>
+                </div>
+                <div id="roundResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+                <button id="copyRoundBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('roundResult', 'copyRoundBtn')">Copy to clipboard</button>
+            </div>
             <div id="invertResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
             <button id="copyInvertBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('invertResult', 'copyInvertBtn')">Copy to clipboard</button>
             <div id="sumControls" style="margin-top: 0.75rem; display: none;">
@@ -386,6 +395,10 @@ function showSumControls() {
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
     document.getElementById('copyInvertBtn').style.display = 'none';
+    document.getElementById('roundControls').style.display = '';
+    document.getElementById('roundResult').style.display = 'none';
+    document.getElementById('roundResult').textContent = '';
+    document.getElementById('copyRoundBtn').style.display = 'none';
     hideEigenScaleControls();
 }
 
@@ -400,6 +413,10 @@ function hideSumControls() {
     document.getElementById('invertResult').style.display = 'none';
     document.getElementById('invertResult').textContent = '';
     document.getElementById('copyInvertBtn').style.display = 'none';
+    document.getElementById('roundControls').style.display = 'none';
+    document.getElementById('roundResult').style.display = 'none';
+    document.getElementById('roundResult').textContent = '';
+    document.getElementById('copyRoundBtn').style.display = 'none';
     hideEigenScaleControls();
 }
 
@@ -591,6 +608,18 @@ function invertResult() {
         out.textContent = `Error: ${e.message}`;
         document.getElementById('copyInvertBtn').style.display = 'none';
     }
+}
+
+function roundResult() {
+    if (!lastResultMatrix) return;
+    const places = parseInt(document.getElementById('roundPlaces').value);
+    if (isNaN(places) || places < 0) return;
+    const factor = Math.pow(10, places);
+    const rounded = lastResultMatrix.map(row => row.map(v => Math.round(v * factor) / factor));
+    const out = document.getElementById('roundResult');
+    out.style.display = '';
+    out.textContent = `Rounded to ${places} decimal place${places !== 1 ? 's' : ''} =\n${formatMatrix(rounded)}`;
+    document.getElementById('copyRoundBtn').style.display = '';
 }
 
 // --- Arithmetic expression evaluator (recursive descent, no eval) ---
