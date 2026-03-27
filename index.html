@@ -345,7 +345,7 @@ function copyResult() {
     const text = lastResultMatrix.map(row =>
         row.map(v => {
             if (Math.abs(v) < 1e-10) v = 0;
-            return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v.toPrecision(6);
+            return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v.toPrecision(6).replace(/\.?0+$/, '');
         }).join(' ')
     ).join('\n');
     navigator.clipboard.writeText(text).then(() => {
@@ -380,7 +380,7 @@ function calcSum() {
     } else {
         sum = lastResultMatrix.reduce((a, row) => a + row[idx], 0);
     }
-    const fmtSum = Math.abs(sum - Math.round(sum)) < 1e-9 ? Math.round(sum) : sum.toPrecision(6);
+    const fmtSum = Math.abs(sum - Math.round(sum)) < 1e-9 ? Math.round(sum) : sum.toPrecision(6).replace(/\.?0+$/, '');
     document.getElementById('sumResult').textContent = `= ${fmtSum}`;
 }
 
@@ -448,7 +448,7 @@ function copyScaledEigenvector() {
     const fmtEntry = v => {
         if (isComplex(v)) return fmtComplex(v);
         if (Math.abs(v) < 1e-10) v = 0;
-        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
+        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6).replace(/\.?0+$/, '');
     };
     const text = lastScaledEigenvector.map(fmtEntry).join('\n');
     navigator.clipboard.writeText(text).then(() => {
@@ -547,7 +547,7 @@ function normalizeEigen() {
         return v / norm;
     });
     lastScaledEigenvector = scaled;
-    const fmtNorm = Math.abs(norm - Math.round(norm)) < 1e-9 ? Math.round(norm).toString() : norm.toPrecision(6);
+    const fmtNorm = Math.abs(norm - Math.round(norm)) < 1e-9 ? Math.round(norm).toString() : norm.toPrecision(6).replace(/\.?0+$/, '');
     const label = `v${idx + 1} / ‖v${idx + 1}‖`;
     const out = document.getElementById('eigenScaleResult');
     out.style.display = '';
@@ -806,7 +806,7 @@ function parseMatrix(text) {
 function formatMatrix(m) {
     const strs = m.map(row => row.map(v => {
         if (Math.abs(v) < 1e-10) v = 0;
-        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6);
+        return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toPrecision(6).replace(/\.?0+$/, '');
     }));
     const widths = [];
     for (let c = 0; c < strs[0].length; c++) {
@@ -948,7 +948,7 @@ function cIsReal(v) { return !isComplex(v) || Math.abs(v.im) < 1e-10; }
 
 function fmtComplex(v) {
     if (!isComplex(v)) v = {re: v, im: 0};
-    const fmtNum = x => { const r = Math.abs(x); return Math.abs(r - Math.round(r)) < 1e-9 ? Math.round(x).toString() : x.toPrecision(6); };
+    const fmtNum = x => { const r = Math.abs(x); return Math.abs(r - Math.round(r)) < 1e-9 ? Math.round(x).toString() : x.toPrecision(6).replace(/\.?0+$/, ''); };
     if (Math.abs(v.im) < 1e-10) return fmtNum(v.re);
     const rp = Math.abs(v.re) < 1e-10 ? '' : fmtNum(v.re);
     const ip = Math.abs(Math.abs(v.im) - 1) < 1e-10 ? '' : fmtNum(Math.abs(v.im));
@@ -1210,7 +1210,7 @@ function calc(op) {
             case 'det': {
                 const d = det(A);
                 out.className = '';
-                out.textContent = `det(A) = ${Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d.toPrecision(6)}`;
+                out.textContent = `det(A) = ${Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d.toPrecision(6).replace(/\.?0+$/, '')}`;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
                 hideSumControls();
@@ -1221,7 +1221,7 @@ function calc(op) {
             case 'trace': {
                 const t = trace(A);
                 out.className = '';
-                out.textContent = `trace(A) = ${Math.abs(t - Math.round(t)) < 1e-9 ? Math.round(t) : t.toPrecision(6)}`;
+                out.textContent = `trace(A) = ${Math.abs(t - Math.round(t)) < 1e-9 ? Math.round(t) : t.toPrecision(6).replace(/\.?0+$/, '')}`;
                 lastResultMatrix = null;
                 document.getElementById('copyBtn').style.display = 'none';
                 hideSumControls();
@@ -1333,7 +1333,7 @@ function calc(op) {
                     } else if (Math.abs(normSq - Math.round(normSq)) < 1e-9) {
                         normStr = `√${Math.round(normSq)}`;
                     } else {
-                        normStr = norm.toPrecision(6);
+                        normStr = norm.toPrecision(6).replace(/\.?0+$/, '');
                         const frac = toFraction(norm);
                         if (frac) normStr += `  (= ${frac})`;
                     }
@@ -1425,7 +1425,7 @@ function computePowerTimesB() {
             current = matMul(A, current);
             const entries = current.map(row => row[0]);
             const entrySum = entries.reduce((a, v) => a + v, 0);
-            const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6);
+            const fmtSum = Math.abs(entrySum - Math.round(entrySum)) < 1e-9 ? Math.round(entrySum).toString() : entrySum.toPrecision(6).replace(/\.?0+$/, '');
             const scaled = current.map(row => [row[0] / entrySum]);
             const col1Lines = (`A^${k} × b =\n${formatMatrix(current)}`).split('\n');
             const col2Lines = (`Sum of entries = ${fmtSum}`).split('\n');
