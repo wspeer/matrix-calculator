@@ -1235,7 +1235,13 @@ function calc(op) {
                     const frac = toFraction(real);
                     return frac ? `  (= ${frac})` : '';
                 };
-                let text = 'Eigenvalues:\n';
+                const eigenSum = eigenvalues.reduce((s, v) => {
+                    const re = isComplex(v) ? v.re : v;
+                    const im = isComplex(v) ? v.im : 0;
+                    return {re: s.re + re, im: s.im + im};
+                }, {re: 0, im: 0});
+                const eigenSumStr = fmtVal(Math.abs(eigenSum.im) < 1e-10 ? eigenSum.re : eigenSum);
+                let text = `Eigenvalues (sum = ${eigenSumStr}):\n`;
                 eigenvalues.forEach((val, i) => {
                     text += `  λ${i + 1} = ${fmtVal(val)}${fracAnnotation(val)}\n`;
                 });
