@@ -616,9 +616,22 @@ function roundResult() {
     if (isNaN(places) || places < 0) return;
     const factor = Math.pow(10, places);
     const rounded = lastResultMatrix.map(row => row.map(v => Math.round(v * factor) / factor));
+    // Format with trailing zero removal for places >= 1
+    const strs = rounded.map(row => row.map(v => {
+        if (places === 0) return v.toString();
+        const s = v.toFixed(places);
+        return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+    }));
+    const widths = [];
+    for (let c = 0; c < strs[0].length; c++) {
+        widths.push(Math.max(...strs.map(row => row[c].length)));
+    }
+    const formatted = strs.map(row =>
+        '[ ' + row.map((s, c) => s.padStart(widths[c])).join('  ') + ' ]'
+    ).join('\n');
     const out = document.getElementById('roundResult');
     out.style.display = '';
-    out.textContent = `Rounded to ${places} decimal place${places !== 1 ? 's' : ''} =\n${formatMatrix(rounded)}`;
+    out.textContent = `Rounded to ${places} decimal place${places !== 1 ? 's' : ''} =\n${formatted}`;
     document.getElementById('copyRoundBtn').style.display = '';
 }
 
