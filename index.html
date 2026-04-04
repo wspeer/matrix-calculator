@@ -184,6 +184,7 @@
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('calc')">Calculator</button>
             <button class="tab-btn" onclick="switchTab('powers')">Powers</button>
+            <button class="tab-btn" onclick="switchTab('svd')">SVD</button>
         </div>
 
         <div id="panel-calc" class="tab-panel active">
@@ -332,6 +333,24 @@
             <div id="pwResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
         </div>
         </div><!-- end panel-powers -->
+
+        <div id="panel-svd" class="tab-panel">
+        <p class="subtitle">Singular Value Decomposition — step-by-step computation aid</p>
+
+        <div class="section">
+            <label>Matrix A</label>
+            <textarea id="svdMatA" style="min-height: 160px;"></textarea>
+        </div>
+
+        <div class="section">
+            <button onclick="computeAtA()">Compute A&#7488;A</button>
+        </div>
+
+        <div class="section">
+            <label>Result</label>
+            <div id="svdResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
+        </div>
+        </div><!-- end panel-svd -->
 
     </div>
 
@@ -1381,7 +1400,8 @@ function switchTab(tab) {
     document.getElementById('panel-' + tab).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(b => {
         if ((tab === 'calc' && b.textContent === 'Calculator') ||
-            (tab === 'powers' && b.textContent === 'Powers'))
+            (tab === 'powers' && b.textContent === 'Powers') ||
+            (tab === 'svd' && b.textContent === 'SVD'))
             b.classList.add('active');
     });
 }
@@ -1456,6 +1476,121 @@ function computePowerTimesB() {
         out.className = '';
         out.textContent = text.trimEnd();
     } catch (e) {
+        out.className = 'error';
+        out.textContent = `Error: ${e.message}`;
+    }
+}
+
+// SVD page functions
+function computeAtA() {
+    const out = document.getElementById('svdResult');
+    try {
+        const A = parseMatrix(document.getElementById('svdMatA').value);
+        const AT = transpose(A);
+        const ATA = matMul(AT, A);
+
+        const fmtVal = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+        const fmtVecEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+
+        let text = 'A\u1D40A =\n' + formatMatrix(ATA) + '\n\n';
+
+        // Eigenvalues/eigenvectors of A^T A
+        const { eigenvalues, eigenvectors } = eigen(ATA);
+
+        // Sort by eigenvalue magnitude descending
+        const indices = eigenvalues.map((_, i) => i);
+        indices.sort((a, b) => {
+            const va = isComplex(eigenvalues[a]) ? Math.sqrt(eigenvalues[a].re**2 + eigenvalues[a].im**2) : Math.abs(eigenvalues[a]);
+            const vb = isComplex(eigenvalues[b]) ? Math.sqrt(eigenvalues[b].re**2 + eigenvalues[b].im**2) : Math.abs(eigenvalues[b]);
+            return vb - va;
+        });
+        const sortedVals = indices.map(i => eigenvalues[i]);
+        const sortedVecs = indices.map(i => eigenvectors[i]);
+
+        // Sum of eigenvalues
+        const eigenSum = sortedVals.reduce((s, v) => {
+            const re = isComplex(v) ? v.re : v;
+            const im = isComplex(v) ? v.im : 0;
+            return {re: s.re + re, im: s.im + im};
+        }, {re: 0, im: 0});
+        const eigenSumStr = fmtVal(Math.abs(eigenSum.im) < 1e-10 ? eigenSum.re : eigenSum);
+
+        text += `Eigenvalues of A\u1D40A (sum = ${eigenSumStr}):\n`;
+        const realSum = isComplex(eigenSum) ? eigenSum.re : (typeof eigenSum === 'object' ? eigenSum.re : eigenSum);
+        sortedVals.forEach((val, i) => {
+            const realVal = isComplex(val) ? val.re : val;
+            const fracAnnotation = (() => {
+                if (isComplex(val) && Math.abs(val.im) > 1e-10) return '';
+                const frac = toFraction(realVal);
+                return frac ? `  (= ${frac})` : '';
+            })();
+            // Energy = eigenvalue / sum * 100
+            let energyStr = '';
+            if (Math.abs(realSum) > 1e-10) {
+                const energy = (realVal / realSum) * 100;
+                energyStr = `  [energy: ${energy.toPrecision(4).replace(/\.?0+$/, '')}%]`;
+            }
+            text += `  \u03BB${i + 1} = ${fmtVal(val)}${fracAnnotation}${energyStr}\n`;
+        });
+
+        // Eigenvectors
+        text += '\nEigenvectors of A\u1D40A:\n';
+        const displayVecs = sortedVecs.map(vec => {
+            const intVec = tryIntegerVec(vec);
+            return intVec ? intVec : vec;
+        });
+
+        const vecStrs = displayVecs.map(vec =>
+            vec.map(v => typeof v === 'number' ? fmtVecEntry(v) : (isComplex(v) ? fmtComplex(v) : String(v)))
+        );
+
+        const n = displayVecs[0].length;
+        const colWidths = vecStrs.map(strs =>
+            Math.max(...strs.map(s => s.length))
+        );
+
+        // Header line
+        text += '  ' + vecStrs.map((_, i) => {
+            const lbl = `v${i + 1}`;
+            const w = colWidths[i] + 4;
+            const pad = Math.floor((w - lbl.length) / 2);
+            return ' '.repeat(pad) + lbl + ' '.repeat(Math.max(0, w - pad - lbl.length));
+        }).join('  ') + '\n';
+
+        for (let r = 0; r < n; r++) {
+            const top = r === 0, bot = r === n - 1;
+            text += '  ' + vecStrs.map((strs, vi) => {
+                const s = strs[r].padStart(colWidths[vi]);
+                const l = top ? '\u23A1' : bot ? '\u23A3' : '\u23A2';
+                const rr = top ? '\u23A4' : bot ? '\u23A6' : '\u23A5';
+                return `${l} ${s} ${rr}`;
+            }).join('  ') + '\n';
+        }
+
+        // Norms
+        text += '\nNorms:\n';
+        displayVecs.forEach((vec, i) => {
+            const normSq = vec.reduce((s, v) => {
+                if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
+                return s + v * v;
+            }, 0);
+            const norm = Math.sqrt(normSq);
+            let normStr;
+            if (Math.abs(norm - Math.round(norm)) < 1e-9) {
+                normStr = Math.round(norm).toString();
+            } else if (Math.abs(normSq - Math.round(normSq)) < 1e-9) {
+                normStr = `\u221A${Math.round(normSq)}`;
+            } else {
+                normStr = norm.toPrecision(6).replace(/\.?0+$/, '');
+                const frac = toFraction(norm);
+                if (frac) normStr += `  (= ${frac})`;
+            }
+            text += `  \u2016v${i + 1}\u2016 = ${normStr}\n`;
+        });
+
+        out.className = '';
+        out.textContent = text;
+    } catch(e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
     }
