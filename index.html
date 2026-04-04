@@ -789,11 +789,22 @@ function tokenize(str) {
     return tokens;
 }
 
+function parseEntry(s) {
+    s = s.trim();
+    const parts = s.split('/');
+    if (parts.length === 2) {
+        const num = parseFloat(parts[0]), den = parseFloat(parts[1]);
+        if (isNaN(num) || isNaN(den) || den === 0) return NaN;
+        return num / den;
+    }
+    return Number(s);
+}
+
 function parseMatrix(text) {
     const lines = text.trim().split('\n').filter(l => l.trim());
     if (lines.length === 0) throw new Error('Matrix is empty');
     const data = lines.map((line, i) => {
-        const nums = line.trim().split(/[\s,]+/).map(Number);
+        const nums = line.trim().split(/[\s,]+/).map(parseEntry);
         if (nums.some(isNaN)) throw new Error(`Invalid number in row ${i + 1}`);
         return nums;
     });
@@ -1380,7 +1391,7 @@ function parseVector(text) {
     const lines = text.trim().split('\n').filter(l => l.trim());
     if (lines.length === 0) throw new Error('Vector is empty');
     return lines.map((line, i) => {
-        const v = Number(line.trim());
+        const v = parseEntry(line.trim());
         if (isNaN(v)) throw new Error(`Invalid number in vector entry ${i + 1}`);
         return [v];
     });
