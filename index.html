@@ -349,6 +349,13 @@
         <div class="section">
             <label>Result</label>
             <div id="svdResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
+            <div id="svdCopyControls" style="margin-top: 0.5rem; display: none;">
+                <div class="inline-group">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Copy</span>
+                    <select id="svdVecSelect" class="scalar-input" style="width: auto; text-align: left;"></select>
+                    <button onclick="copySvdEigenvector()">Copy to clipboard</button>
+                </div>
+            </div>
         </div>
         </div><!-- end panel-svd -->
 
@@ -1482,6 +1489,17 @@ function computePowerTimesB() {
 }
 
 // SVD page functions
+let lastSvdEigenvectors = null;
+
+function copySvdEigenvector() {
+    if (!lastSvdEigenvectors) return;
+    const idx = parseInt(document.getElementById('svdVecSelect').value);
+    const vec = lastSvdEigenvectors[idx];
+    const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const text = vec.map(v => fmtEntry(v)).join('\n');
+    navigator.clipboard.writeText(text);
+}
+
 function computeAtA() {
     const out = document.getElementById('svdResult');
     try {
@@ -1590,9 +1608,23 @@ function computeAtA() {
 
         out.className = '';
         out.textContent = text;
+
+        // Store eigenvectors and show copy controls
+        lastSvdEigenvectors = displayVecs;
+        const sel = document.getElementById('svdVecSelect');
+        sel.innerHTML = '';
+        displayVecs.forEach((_, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `v${i + 1}`;
+            sel.appendChild(opt);
+        });
+        document.getElementById('svdCopyControls').style.display = '';
     } catch(e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
+        lastSvdEigenvectors = null;
+        document.getElementById('svdCopyControls').style.display = 'none';
     }
 }
 
