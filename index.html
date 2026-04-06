@@ -362,6 +362,11 @@
                     <button onclick="copySvdUVector()">Copy to clipboard</button>
                     <button onclick="copySvdUVectorTranspose()">Copy transpose</button>
                 </div>
+                <div class="inline-group" id="svdSigmaCopyControls" style="margin-top: 0.5rem; display: none;">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Copy</span>
+                    <select id="svdSigmaSelect" class="scalar-input" style="width: auto; text-align: left;"></select>
+                    <button onclick="copySvdSigma()">Copy to clipboard</button>
+                </div>
             </div>
         </div>
         </div><!-- end panel-svd -->
@@ -1498,6 +1503,14 @@ function computePowerTimesB() {
 // SVD page functions
 let lastSvdEigenvectors = null;
 let lastSvdUVectors = null;
+let lastSvdSigmas = null;
+
+function copySvdSigma() {
+    if (!lastSvdSigmas) return;
+    const idx = parseInt(document.getElementById('svdSigmaSelect').value);
+    const val = lastSvdSigmas[idx];
+    navigator.clipboard.writeText(val.toPrecision(10).replace(/\.?0+$/, ''));
+}
 
 function copySvdUVector() {
     if (!lastSvdUVectors) return;
@@ -1570,6 +1583,7 @@ function computeAtA() {
 
         text += `Eigenvalues and singular values of A\u1D40A (sum = ${eigenSumStr}):\n`;
         const realSum = isComplex(eigenSum) ? eigenSum.re : (typeof eigenSum === 'object' ? eigenSum.re : eigenSum);
+        const sigmaValues = [];
         sortedVals.forEach((val, i) => {
             const realVal = isComplex(val) ? val.re : val;
             const fracAnnotation = (() => {
@@ -1579,6 +1593,7 @@ function computeAtA() {
             })();
             // Singular value = sqrt(eigenvalue)
             const sigma = realVal >= 0 ? Math.sqrt(realVal) : 0;
+            sigmaValues.push(sigma);
             let sigmaStr = sigma.toPrecision(6).replace(/\.?0+$/, '');
             if (Math.abs(sigma - Math.round(sigma)) < 1e-9) {
                 sigmaStr = Math.round(sigma).toString();
@@ -1701,13 +1716,27 @@ function computeAtA() {
         } else {
             document.getElementById('svdUCopyControls').style.display = 'none';
         }
+
+        // Store sigma values and show copy controls
+        lastSvdSigmas = sigmaValues;
+        const sigmaSel = document.getElementById('svdSigmaSelect');
+        sigmaSel.innerHTML = '';
+        sigmaValues.forEach((_, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `\u03C3${i + 1}`;
+            sigmaSel.appendChild(opt);
+        });
+        document.getElementById('svdSigmaCopyControls').style.display = '';
     } catch(e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
         lastSvdEigenvectors = null;
         lastSvdUVectors = null;
+        lastSvdSigmas = null;
         document.getElementById('svdCopyControls').style.display = 'none';
         document.getElementById('svdUCopyControls').style.display = 'none';
+        document.getElementById('svdSigmaCopyControls').style.display = 'none';
     }
 }
 
