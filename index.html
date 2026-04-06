@@ -1561,12 +1561,9 @@ function computeAtA() {
             text += `  \u03BB${i + 1} = ${fmtVal(val)}${fracAnnotation}${energyStr}\n`;
         });
 
-        // Eigenvectors
-        text += '\nEigenvectors of A\u1D40A:\n';
-        const displayVecs = sortedVecs.map(vec => {
-            const intVec = tryIntegerVec(vec);
-            return intVec ? intVec : vec;
-        });
+        // Eigenvectors (keep normalized from eigen())
+        text += '\nNormalized eigenvectors of A\u1D40A:\n';
+        const displayVecs = sortedVecs;
 
         const vecStrs = displayVecs.map(vec =>
             vec.map(v => typeof v === 'number' ? fmtVecEntry(v) : (isComplex(v) ? fmtComplex(v) : String(v)))
@@ -1594,27 +1591,6 @@ function computeAtA() {
                 return `${l} ${s} ${rr}`;
             }).join('  ') + '\n';
         }
-
-        // Norms
-        text += '\nNorms:\n';
-        displayVecs.forEach((vec, i) => {
-            const normSq = vec.reduce((s, v) => {
-                if (isComplex(v)) return s + v.re * v.re + v.im * v.im;
-                return s + v * v;
-            }, 0);
-            const norm = Math.sqrt(normSq);
-            let normStr;
-            if (Math.abs(norm - Math.round(norm)) < 1e-9) {
-                normStr = Math.round(norm).toString();
-            } else if (Math.abs(normSq - Math.round(normSq)) < 1e-9) {
-                normStr = `\u221A${Math.round(normSq)}`;
-            } else {
-                normStr = norm.toPrecision(6).replace(/\.?0+$/, '');
-                const frac = toFraction(norm);
-                if (frac) normStr += `  (= ${frac})`;
-            }
-            text += `  \u2016v${i + 1}\u2016 = ${normStr}\n`;
-        });
 
         out.className = '';
         out.textContent = text;
