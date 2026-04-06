@@ -1543,7 +1543,7 @@ function computeAtA() {
         }, {re: 0, im: 0});
         const eigenSumStr = fmtVal(Math.abs(eigenSum.im) < 1e-10 ? eigenSum.re : eigenSum);
 
-        text += `Eigenvalues of A\u1D40A (sum = ${eigenSumStr}):\n`;
+        text += `Eigenvalues and singular values of A\u1D40A (sum = ${eigenSumStr}):\n`;
         const realSum = isComplex(eigenSum) ? eigenSum.re : (typeof eigenSum === 'object' ? eigenSum.re : eigenSum);
         sortedVals.forEach((val, i) => {
             const realVal = isComplex(val) ? val.re : val;
@@ -1552,13 +1552,24 @@ function computeAtA() {
                 const frac = toFraction(realVal);
                 return frac ? `  (= ${frac})` : '';
             })();
+            // Singular value = sqrt(eigenvalue)
+            const sigma = realVal >= 0 ? Math.sqrt(realVal) : 0;
+            let sigmaStr = sigma.toPrecision(6).replace(/\.?0+$/, '');
+            if (Math.abs(sigma - Math.round(sigma)) < 1e-9) {
+                sigmaStr = Math.round(sigma).toString();
+            } else if (realVal >= 0 && Math.abs(realVal - Math.round(realVal)) < 1e-9) {
+                sigmaStr = `\u221A${Math.round(realVal)}`;
+            } else {
+                const sigmaFrac = toFraction(sigma);
+                if (sigmaFrac) sigmaStr += `  (= ${sigmaFrac})`;
+            }
             // Energy = eigenvalue / sum * 100
             let energyStr = '';
             if (Math.abs(realSum) > 1e-10) {
                 const energy = (realVal / realSum) * 100;
                 energyStr = `  [energy: ${energy.toPrecision(4).replace(/\.?0+$/, '')}%]`;
             }
-            text += `  \u03BB${i + 1} = ${fmtVal(val)}${fracAnnotation}${energyStr}\n`;
+            text += `  \u03BB${i + 1} = ${fmtVal(val)}${fracAnnotation},  \u03C3${i + 1} = ${sigmaStr}${energyStr}\n`;
         });
 
         // Eigenvectors (keep normalized from eigen())
