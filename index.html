@@ -354,6 +354,7 @@
                     <span style="color: #94a3b8; font-size: 0.875rem;">Copy</span>
                     <select id="svdVecSelect" class="scalar-input" style="width: auto; text-align: left;"></select>
                     <button onclick="copySvdEigenvector()">Copy to clipboard</button>
+                    <button onclick="copySvdEigenvectorTranspose()">Copy transpose</button>
                 </div>
             </div>
         </div>
@@ -1497,6 +1498,15 @@ function copySvdEigenvector() {
     const vec = lastSvdEigenvectors[idx];
     const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
     const text = vec.map(v => fmtEntry(v)).join('\n');
+    navigator.clipboard.writeText(text);
+}
+
+function copySvdEigenvectorTranspose() {
+    if (!lastSvdEigenvectors) return;
+    const idx = parseInt(document.getElementById('svdVecSelect').value);
+    const vec = lastSvdEigenvectors[idx];
+    const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const text = vec.map(v => fmtEntry(v)).join('  ');
     navigator.clipboard.writeText(text);
 }
 
