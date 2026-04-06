@@ -356,6 +356,12 @@
                     <button onclick="copySvdEigenvector()">Copy to clipboard</button>
                     <button onclick="copySvdEigenvectorTranspose()">Copy transpose</button>
                 </div>
+                <div class="inline-group" id="svdUCopyControls" style="margin-top: 0.5rem; display: none;">
+                    <span style="color: #94a3b8; font-size: 0.875rem;">Copy</span>
+                    <select id="svdUVecSelect" class="scalar-input" style="width: auto; text-align: left;"></select>
+                    <button onclick="copySvdUVector()">Copy to clipboard</button>
+                    <button onclick="copySvdUVectorTranspose()">Copy transpose</button>
+                </div>
             </div>
         </div>
         </div><!-- end panel-svd -->
@@ -1491,6 +1497,25 @@ function computePowerTimesB() {
 
 // SVD page functions
 let lastSvdEigenvectors = null;
+let lastSvdUVectors = null;
+
+function copySvdUVector() {
+    if (!lastSvdUVectors) return;
+    const idx = parseInt(document.getElementById('svdUVecSelect').value);
+    const vec = lastSvdUVectors[idx];
+    const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const text = vec.map(v => fmtEntry(v)).join('\n');
+    navigator.clipboard.writeText(text);
+}
+
+function copySvdUVectorTranspose() {
+    if (!lastSvdUVectors) return;
+    const idx = parseInt(document.getElementById('svdUVecSelect').value);
+    const vec = lastSvdUVectors[idx];
+    const fmtEntry = v => isComplex(v) ? fmtComplex(v) : fmtComplex({re: v, im: 0});
+    const text = vec.map(v => fmtEntry(v)).join('  ');
+    navigator.clipboard.writeText(text);
+}
 
 function copySvdEigenvector() {
     if (!lastSvdEigenvectors) return;
@@ -1603,6 +1628,49 @@ function computeAtA() {
             }).join('  ') + '\n';
         }
 
+        // Left singular vectors: u_i = (1/σ_i) * A * v_i
+        const uVectors = [];
+        const nonzeroU = []; // indices of u vectors with nonzero sigma
+        sortedVals.forEach((val, i) => {
+            const realVal = isComplex(val) ? val.re : val;
+            const sigma = realVal > 1e-10 ? Math.sqrt(realVal) : 0;
+            if (sigma > 1e-10) {
+                // v_i as column vector (n×1)
+                const vi = displayVecs[i].map(v => [isComplex(v) ? v.re : v]);
+                const Avi = matMul(A, vi); // m×1
+                const ui = Avi.map(row => row[0] / sigma);
+                uVectors.push(ui);
+                nonzeroU.push(i);
+            }
+        });
+
+        if (uVectors.length > 0) {
+            const m = uVectors[0].length;
+            text += '\nLeft singular vectors (u\u1D62 = A v\u1D62 / \u03C3\u1D62):\n';
+            const uStrs = uVectors.map(vec =>
+                vec.map(v => fmtVecEntry(v))
+            );
+            const uColWidths = uStrs.map(strs =>
+                Math.max(...strs.map(s => s.length))
+            );
+            // Header
+            text += '  ' + uStrs.map((_, j) => {
+                const lbl = `u${nonzeroU[j] + 1}`;
+                const w = uColWidths[j] + 4;
+                const pad = Math.floor((w - lbl.length) / 2);
+                return ' '.repeat(pad) + lbl + ' '.repeat(Math.max(0, w - pad - lbl.length));
+            }).join('  ') + '\n';
+            for (let r = 0; r < m; r++) {
+                const top = r === 0, bot = r === m - 1;
+                text += '  ' + uStrs.map((strs, vi) => {
+                    const s = strs[r].padStart(uColWidths[vi]);
+                    const l = top ? '\u23A1' : bot ? '\u23A3' : '\u23A2';
+                    const rr = top ? '\u23A4' : bot ? '\u23A6' : '\u23A5';
+                    return `${l} ${s} ${rr}`;
+                }).join('  ') + '\n';
+            }
+        }
+
         out.className = '';
         out.textContent = text;
 
@@ -1617,11 +1685,29 @@ function computeAtA() {
             sel.appendChild(opt);
         });
         document.getElementById('svdCopyControls').style.display = '';
+
+        // Store u vectors and show copy controls
+        lastSvdUVectors = uVectors;
+        const uSel = document.getElementById('svdUVecSelect');
+        uSel.innerHTML = '';
+        if (uVectors.length > 0) {
+            uVectors.forEach((_, j) => {
+                const opt = document.createElement('option');
+                opt.value = j;
+                opt.textContent = `u${nonzeroU[j] + 1}`;
+                uSel.appendChild(opt);
+            });
+            document.getElementById('svdUCopyControls').style.display = '';
+        } else {
+            document.getElementById('svdUCopyControls').style.display = 'none';
+        }
     } catch(e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
         lastSvdEigenvectors = null;
+        lastSvdUVectors = null;
         document.getElementById('svdCopyControls').style.display = 'none';
+        document.getElementById('svdUCopyControls').style.display = 'none';
     }
 }
 
