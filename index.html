@@ -220,6 +220,7 @@
                 <button onclick="calc('ata')">A&#7488;A</button>
                 <button onclick="calc('aat')">AA&#7488;</button>
                 <button onclick="calc('cosine_rows')">Cosine similarity (rows)</button>
+                <button onclick="calc('cosine_cols')">Cosine similarity (columns)</button>
             </div>
             <div class="inline-group" style="margin-top: 0.75rem; justify-content: space-between;">
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1295,6 +1296,35 @@ function calc(op) {
                         ? Math.round(cos).toString()
                         : cos.toPrecision(6).replace(/\.?0+$/, '');
                     text += `  row ${i + 1}: ${cosStr}\n`;
+                }
+                out.className = '';
+                out.textContent = text;
+                lastResultMatrix = null;
+                document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
+                return;
+            }
+            case 'cosine_cols': {
+                const B = parseMatrix(document.getElementById('matB').value);
+                if (A.length !== B.length)
+                    throw new Error('A and B must have the same number of rows');
+                if (A[0].length !== B[0].length)
+                    throw new Error('A and B must have the same number of columns');
+                let text = 'Cosine similarity (columns):\n';
+                for (let j = 0; j < A[0].length; j++) {
+                    let dot = 0, normA = 0, normB = 0;
+                    for (let i = 0; i < A.length; i++) {
+                        dot += A[i][j] * B[i][j];
+                        normA += A[i][j] * A[i][j];
+                        normB += B[i][j] * B[i][j];
+                    }
+                    normA = Math.sqrt(normA);
+                    normB = Math.sqrt(normB);
+                    const cos = (normA < 1e-14 || normB < 1e-14) ? 0 : dot / (normA * normB);
+                    const cosStr = Math.abs(cos - Math.round(cos)) < 1e-9
+                        ? Math.round(cos).toString()
+                        : cos.toPrecision(6).replace(/\.?0+$/, '');
+                    text += `  col ${j + 1}: ${cosStr}\n`;
                 }
                 out.className = '';
                 out.textContent = text;
