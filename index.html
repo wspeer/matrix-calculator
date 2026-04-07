@@ -219,6 +219,7 @@
                 <button onclick="calc('eigen')">Eigenvalues</button>
                 <button onclick="calc('ata')">A&#7488;A</button>
                 <button onclick="calc('aat')">AA&#7488;</button>
+                <button onclick="calc('cosine_rows')">Cosine similarity (rows)</button>
             </div>
             <div class="inline-group" style="margin-top: 0.75rem; justify-content: space-between;">
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1273,6 +1274,35 @@ function calc(op) {
                 result = matMul(transpose(A), A); label = 'AᵀA'; break;
             case 'aat':
                 result = matMul(A, transpose(A)); label = 'AAᵀ'; break;
+            case 'cosine_rows': {
+                const B = parseMatrix(document.getElementById('matB').value);
+                if (A[0].length !== B[0].length)
+                    throw new Error('A and B must have the same number of columns');
+                if (A.length !== B.length)
+                    throw new Error('A and B must have the same number of rows');
+                let text = 'Cosine similarity (rows):\n';
+                for (let i = 0; i < A.length; i++) {
+                    let dot = 0, normA = 0, normB = 0;
+                    for (let j = 0; j < A[0].length; j++) {
+                        dot += A[i][j] * B[i][j];
+                        normA += A[i][j] * A[i][j];
+                        normB += B[i][j] * B[i][j];
+                    }
+                    normA = Math.sqrt(normA);
+                    normB = Math.sqrt(normB);
+                    const cos = (normA < 1e-14 || normB < 1e-14) ? 0 : dot / (normA * normB);
+                    const cosStr = Math.abs(cos - Math.round(cos)) < 1e-9
+                        ? Math.round(cos).toString()
+                        : cos.toPrecision(6).replace(/\.?0+$/, '');
+                    text += `  row ${i + 1}: ${cosStr}\n`;
+                }
+                out.className = '';
+                out.textContent = text;
+                lastResultMatrix = null;
+                document.getElementById('copyBtn').style.display = 'none';
+                hideSumControls();
+                return;
+            }
             case 'det': {
                 const d = det(A);
                 out.className = '';
