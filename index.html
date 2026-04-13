@@ -1931,16 +1931,29 @@ function computePCA() {
         const XtX = matMul(XcT, Xc);
         const cov = XtX.map(row => row.map(v => v / (n - 1)));
 
+        // Correlation matrix: R_ij = C_ij / (s_i * s_j), where s_i = sqrt(C_ii)
+        const stds = Array(p).fill(0);
+        for (let j = 0; j < p; j++) stds[j] = Math.sqrt(cov[j][j]);
+        const corr = cov.map((row, i) => row.map((v, j) => {
+            const denom = stds[i] * stds[j];
+            return denom < 1e-14 ? 0 : v / denom;
+        }));
+
         let text = 'Column means:\n  [';
         text += means.map(m => {
             if (Math.abs(m - Math.round(m)) < 1e-9) return Math.round(m).toString();
             return m.toPrecision(6).replace(/\.?0+$/, '');
         }).join(', ');
-        text += ']\n\nCovariance matrix:\n';
-        text += formatMatrix(cov) + '\n\n';
+        text += ']\n\nColumn standard deviations:\n  [';
+        text += stds.map(s => {
+            if (Math.abs(s - Math.round(s)) < 1e-9) return Math.round(s).toString();
+            return s.toPrecision(6).replace(/\.?0+$/, '');
+        }).join(', ');
+        text += ']\n\nCorrelation matrix:\n';
+        text += formatMatrix(corr) + '\n\n';
 
-        // Eigenvalues/eigenvectors of covariance matrix
-        const { eigenvalues, eigenvectors } = eigen(cov);
+        // Eigenvalues/eigenvectors of correlation matrix
+        const { eigenvalues, eigenvectors } = eigen(corr);
 
         // Sort by variance (eigenvalue) descending
         const indices = eigenvalues.map((_, i) => i);
@@ -1970,7 +1983,7 @@ function computePCA() {
         });
 
         // Principal components (normalized eigenvectors)
-        text += '\nPrincipal components (normalized eigenvectors of covariance matrix):\n';
+        text += '\nPrincipal components (normalized eigenvectors of correlation matrix):\n';
         const displayVecs = sortedVecs;
         const vecStrs = displayVecs.map(vec =>
             vec.map(v => typeof v === 'number' ? fmtVecEntry(v) : (isComplex(v) ? fmtComplex(v) : String(v)))
