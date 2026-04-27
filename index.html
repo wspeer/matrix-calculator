@@ -877,14 +877,40 @@ function parseTerm(s) {
         if (isNaN(coeff) || isNaN(inner)) return NaN;
         return coeff * Math.sqrt(inner);
     }
+    // Handle exponents: base^exp or base^(num/den)
+    const expMatch = s.match(/^([+-]?\d+\.?\d*)\^(?:\(([^)]+)\)|(\d+\.?\d*))$/);
+    if (expMatch) {
+        const base = parseFloat(expMatch[1]);
+        let exp;
+        if (expMatch[2] !== undefined) {
+            const fracParts = expMatch[2].split('/');
+            if (fracParts.length === 2) {
+                const en = parseFloat(fracParts[0]), ed = parseFloat(fracParts[1]);
+                if (isNaN(en) || isNaN(ed) || ed === 0) return NaN;
+                exp = en / ed;
+            } else {
+                exp = parseFloat(expMatch[2]);
+            }
+        } else {
+            exp = parseFloat(expMatch[3]);
+        }
+        if (isNaN(base) || isNaN(exp)) return NaN;
+        return Math.pow(base, exp);
+    }
     return Number(s);
 }
 
 function parseEntry(s) {
     s = s.trim();
-    const parts = s.split('/');
-    if (parts.length === 2) {
-        const num = parseTerm(parts[0]), den = parseTerm(parts[1]);
+    // Find '/' not inside parentheses for fraction split
+    let depth = 0, slashIdx = -1;
+    for (let i = 0; i < s.length; i++) {
+        if (s[i] === '(') depth++;
+        else if (s[i] === ')') depth--;
+        else if (s[i] === '/' && depth === 0) { slashIdx = i; break; }
+    }
+    if (slashIdx > 0 && slashIdx < s.length - 1) {
+        const num = parseTerm(s.slice(0, slashIdx)), den = parseTerm(s.slice(slashIdx + 1));
         if (isNaN(num) || isNaN(den) || den === 0) return NaN;
         return num / den;
     }
