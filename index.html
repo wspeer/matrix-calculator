@@ -865,15 +865,30 @@ function tokenize(str) {
     return tokens;
 }
 
+function parseTerm(s) {
+    s = s.trim();
+    if (s === '') return NaN;
+    // Handle sqrt(...) or √...
+    const sqrtMatch = s.match(/^([+-]?\d*\.?\d*)\s*(?:sqrt\(([^)]+)\)|√(\d+\.?\d*))$/i);
+    if (sqrtMatch) {
+        let coeff = sqrtMatch[1];
+        coeff = (coeff === '' || coeff === '+') ? 1 : (coeff === '-' ? -1 : parseFloat(coeff));
+        const inner = parseFloat(sqrtMatch[2] !== undefined ? sqrtMatch[2] : sqrtMatch[3]);
+        if (isNaN(coeff) || isNaN(inner)) return NaN;
+        return coeff * Math.sqrt(inner);
+    }
+    return Number(s);
+}
+
 function parseEntry(s) {
     s = s.trim();
     const parts = s.split('/');
     if (parts.length === 2) {
-        const num = parseFloat(parts[0]), den = parseFloat(parts[1]);
+        const num = parseTerm(parts[0]), den = parseTerm(parts[1]);
         if (isNaN(num) || isNaN(den) || den === 0) return NaN;
         return num / den;
     }
-    return Number(s);
+    return parseTerm(s);
 }
 
 function parseMatrix(text) {
