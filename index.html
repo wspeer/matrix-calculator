@@ -853,7 +853,11 @@ function tokenize(str) {
         if (/[a-zA-Z_]/.test(str[i])) {
             let id = '';
             while (i < str.length && /[a-zA-Z0-9_]/.test(str[i])) id += str[i++];
-            tokens.push({ type: 'ident', value: id });
+            if (id.toLowerCase() === 'mod') {
+                tokens.push({ type: 'op', value: '%' });
+            } else {
+                tokens.push({ type: 'ident', value: id });
+            }
             continue;
         }
         if ('+-*/%^()|'.includes(str[i])) {
