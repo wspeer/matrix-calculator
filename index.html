@@ -252,6 +252,14 @@
                 <div id="roundResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
                 <button id="copyRoundBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('roundResult', 'copyRoundBtn')">Copy to clipboard</button>
             </div>
+            <div id="modControls" style="margin-top: 0.5rem; display: none;">
+                <div class="inline-group">
+                    <button onclick="modResult()">Entries mod</button>
+                    <input type="number" id="modValue" class="scalar-input" step="any" style="width: 80px;">
+                </div>
+                <div id="modResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
+                <button id="copyModBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('modResult', 'copyModBtn')">Copy to clipboard</button>
+            </div>
             <div id="invertResult" style="margin-top: 0.5rem; background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; color: #38bdf8; display: none;"></div>
             <button id="copyInvertBtn" style="margin-top: 0.5rem; display: none;" onclick="copySecondary('invertResult', 'copyInvertBtn')">Copy to clipboard</button>
             <div id="sumControls" style="margin-top: 0.75rem; display: none;">
@@ -475,6 +483,10 @@ function showSumControls() {
     document.getElementById('roundResult').style.display = 'none';
     document.getElementById('roundResult').textContent = '';
     document.getElementById('copyRoundBtn').style.display = 'none';
+    document.getElementById('modControls').style.display = '';
+    document.getElementById('modResult').style.display = 'none';
+    document.getElementById('modResult').textContent = '';
+    document.getElementById('copyModBtn').style.display = 'none';
     hideEigenScaleControls();
 }
 
@@ -493,6 +505,10 @@ function hideSumControls() {
     document.getElementById('roundResult').style.display = 'none';
     document.getElementById('roundResult').textContent = '';
     document.getElementById('copyRoundBtn').style.display = 'none';
+    document.getElementById('modControls').style.display = 'none';
+    document.getElementById('modResult').style.display = 'none';
+    document.getElementById('modResult').textContent = '';
+    document.getElementById('copyModBtn').style.display = 'none';
     hideEigenScaleControls();
 }
 
@@ -709,6 +725,30 @@ function roundResult() {
     out.style.display = '';
     out.textContent = `Rounded to ${places} decimal place${places !== 1 ? 's' : ''} =\n${formatted}`;
     document.getElementById('copyRoundBtn').style.display = '';
+}
+
+function modResult() {
+    if (!lastResultMatrix) return;
+    const m = parseFloat(document.getElementById('modValue').value);
+    if (isNaN(m) || m === 0) return;
+    const modded = lastResultMatrix.map(row => row.map(v => ((v % m) + m) % m));
+    const strs = modded.map(row => row.map(v => {
+        if (Math.abs(v) < 1e-10) v = 0;
+        return Math.abs(v - Math.round(v)) < 1e-9
+            ? Math.round(v).toString()
+            : v.toPrecision(6).replace(/\.?0+$/, '');
+    }));
+    const widths = [];
+    for (let c = 0; c < strs[0].length; c++) {
+        widths.push(Math.max(...strs.map(row => row[c].length)));
+    }
+    const formatted = strs.map(row =>
+        '[ ' + row.map((s, c) => s.padStart(widths[c])).join('  ') + ' ]'
+    ).join('\n');
+    const out = document.getElementById('modResult');
+    out.style.display = '';
+    out.textContent = `Entries mod ${m} =\n${formatted}`;
+    document.getElementById('copyModBtn').style.display = '';
 }
 
 // --- Arithmetic expression evaluator (recursive descent, no eval) ---
