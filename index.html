@@ -186,6 +186,7 @@
             <button class="tab-btn" onclick="switchTab('powers')">Powers</button>
             <button class="tab-btn" onclick="switchTab('svd')">SVD</button>
             <button class="tab-btn" onclick="switchTab('pca')">PCA</button>
+            <button class="tab-btn" onclick="switchTab('rowred')">Row Reduction</button>
         </div>
 
         <div id="panel-calc" class="tab-panel active">
@@ -416,6 +417,25 @@
             <div id="pcaResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
         </div>
         </div><!-- end panel-pca -->
+
+        <div id="panel-rowred" class="tab-panel">
+        <p class="subtitle">Step-by-step row reduction</p>
+
+        <div class="section">
+            <label>Matrix</label>
+            <textarea id="rowredMat" style="min-height: 160px;"></textarea>
+        </div>
+
+        <div class="section">
+            <button onclick="stepRowReduce('ref')">Echelon Form (REF)</button>
+            <button onclick="stepRowReduce('rref')">Reduced Echelon Form (RREF)</button>
+        </div>
+
+        <div class="section">
+            <label>Result</label>
+            <div id="rowredResult" style="background: #0f172a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', 'Consolas', monospace; font-size: 1rem; white-space: pre; overflow-x: auto; min-height: 60px; color: #4ade80; max-height: 70vh; overflow-y: auto;">Results appear here...</div>
+        </div>
+        </div><!-- end panel-rowred -->
 
     </div>
 
@@ -1602,7 +1622,8 @@ function switchTab(tab) {
         if ((tab === 'calc' && b.textContent === 'Calculator') ||
             (tab === 'powers' && b.textContent === 'Powers') ||
             (tab === 'svd' && b.textContent === 'SVD') ||
-            (tab === 'pca' && b.textContent === 'PCA'))
+            (tab === 'pca' && b.textContent === 'PCA') ||
+            (tab === 'rowred' && b.textContent === 'Row Reduction'))
             b.classList.add('active');
     });
 }
@@ -2093,6 +2114,116 @@ function computePCA() {
 
         out.className = '';
         out.textContent = text;
+    } catch(e) {
+        out.className = 'error';
+        out.textContent = `Error: ${e.message}`;
+    }
+}
+
+// Row Reduction step-by-step
+function fmtEntry(v) {
+    if (Math.abs(v) < 1e-10) return '0';
+    if (Math.abs(v - Math.round(v)) < 1e-9) return Math.round(v).toString();
+    const frac = toFraction(v);
+    return frac || v.toPrecision(6).replace(/\.?0+$/, '');
+}
+
+function stepRowReduce(mode) {
+    const out = document.getElementById('rowredResult');
+    try {
+        const orig = parseMatrix(document.getElementById('rowredMat').value);
+        const rows = orig.length, cols = orig[0].length;
+        const m = orig.map(r => [...r]);
+        const steps = [];
+
+        steps.push({ label: 'Initial matrix:', matrix: m.map(r => [...r]) });
+
+        let pivotRow = 0;
+        const pivotCols = [];
+
+        // Forward elimination (echelon form)
+        for (let col = 0; col < cols && pivotRow < rows; col++) {
+            // Find pivot: largest absolute value in column for numerical stability
+            let maxVal = Math.abs(m[pivotRow][col]), maxIdx = pivotRow;
+            for (let r = pivotRow + 1; r < rows; r++) {
+                if (Math.abs(m[r][col]) > maxVal) {
+                    maxVal = Math.abs(m[r][col]);
+                    maxIdx = r;
+                }
+            }
+            if (maxVal < 1e-10) continue;
+
+            // Swap rows if needed
+            if (maxIdx !== pivotRow) {
+                [m[pivotRow], m[maxIdx]] = [m[maxIdx], m[pivotRow]];
+                steps.push({
+                    label: `R${pivotRow + 1} ↔ R${maxIdx + 1}`,
+                    matrix: m.map(r => [...r])
+                });
+            }
+
+            // Scale pivot row to make pivot = 1
+            const pivot = m[pivotRow][col];
+            if (Math.abs(pivot - 1) > 1e-10) {
+                for (let j = 0; j < cols; j++) m[pivotRow][j] /= pivot;
+                steps.push({
+                    label: `R${pivotRow + 1} ← R${pivotRow + 1} × (1/${fmtEntry(pivot)})`,
+                    matrix: m.map(r => [...r])
+                });
+            }
+
+            // Eliminate below pivot
+            for (let r = pivotRow + 1; r < rows; r++) {
+                const factor = m[r][col];
+                if (Math.abs(factor) < 1e-10) continue;
+                for (let j = 0; j < cols; j++) m[r][j] -= factor * m[pivotRow][j];
+                const sign = factor > 0 ? '−' : '+';
+                const absFactor = Math.abs(factor);
+                const factorStr = Math.abs(absFactor - 1) < 1e-10 ? '' : fmtEntry(absFactor) + ' × ';
+                steps.push({
+                    label: `R${r + 1} ← R${r + 1} ${sign} ${factorStr}R${pivotRow + 1}`,
+                    matrix: m.map(r => [...r])
+                });
+            }
+
+            pivotCols.push({ row: pivotRow, col });
+            pivotRow++;
+        }
+
+        if (mode === 'ref') {
+            steps.push({ label: 'Echelon form (REF):', matrix: m.map(r => [...r]), final: true });
+        }
+
+        // Back substitution (reduced echelon form)
+        if (mode === 'rref') {
+            for (let p = pivotCols.length - 1; p >= 0; p--) {
+                const { row: pRow, col: pCol } = pivotCols[p];
+                for (let r = 0; r < pRow; r++) {
+                    const factor = m[r][pCol];
+                    if (Math.abs(factor) < 1e-10) continue;
+                    for (let j = 0; j < cols; j++) m[r][j] -= factor * m[pRow][j];
+                    const sign = factor > 0 ? '−' : '+';
+                    const absFactor = Math.abs(factor);
+                    const factorStr = Math.abs(absFactor - 1) < 1e-10 ? '' : fmtEntry(absFactor) + ' × ';
+                    steps.push({
+                        label: `R${r + 1} ← R${r + 1} ${sign} ${factorStr}R${pRow + 1}`,
+                        matrix: m.map(r => [...r])
+                    });
+                }
+            }
+            steps.push({ label: 'Reduced echelon form (RREF):', matrix: m.map(r => [...r]), final: true });
+        }
+
+        // Render
+        let text = '';
+        for (const step of steps) {
+            if (step.final) text += '\n';
+            text += step.label + '\n';
+            text += formatMatrix(step.matrix) + '\n\n';
+        }
+
+        out.className = '';
+        out.textContent = text.trimEnd();
     } catch(e) {
         out.className = 'error';
         out.textContent = `Error: ${e.message}`;
