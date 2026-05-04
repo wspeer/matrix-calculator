@@ -182,14 +182,14 @@
     <div class="container">
         <h1>Matrix Calculator</h1>
         <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('calc')">Calculator</button>
+            <button class="tab-btn active" onclick="switchTab('rowred')">Row Reduction</button>
+            <button class="tab-btn" onclick="switchTab('calc')">Calculator</button>
             <button class="tab-btn" onclick="switchTab('powers')">Powers</button>
             <button class="tab-btn" onclick="switchTab('svd')">SVD</button>
             <button class="tab-btn" onclick="switchTab('pca')">PCA</button>
-            <button class="tab-btn" onclick="switchTab('rowred')">Row Reduction</button>
         </div>
 
-        <div id="panel-calc" class="tab-panel active">
+        <div id="panel-calc" class="tab-panel">
         <p class="subtitle">Enter matrices row by row, one row per line, values separated by spaces</p>
 
         <div class="section">
@@ -418,7 +418,7 @@
         </div>
         </div><!-- end panel-pca -->
 
-        <div id="panel-rowred" class="tab-panel">
+        <div id="panel-rowred" class="tab-panel active">
         <p class="subtitle">Step-by-step row reduction</p>
 
         <div class="section">
